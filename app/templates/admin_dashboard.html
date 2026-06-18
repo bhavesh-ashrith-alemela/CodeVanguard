@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}CodeVanguard – Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8 animate-slide-up">
+    
+    <!-- Title Area -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-4 border-slate-900 pb-4">
+        <div>
+            <h2 class="text-xl font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                <i data-lucide="shield" class="w-5 h-5 text-primary"></i>
+                Admin Command Center
+            </h2>
+            <p class="text-xs text-slate-555 font-bold">
+                Logged in as <span class="text-slate-800 font-extrabold">{{ admin.username }}</span>. Review system status, audit logs, and manage scan database.
+            </p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <a href="/admin/logout" class="cartoon-btn btn-sm bg-red-500 hover:bg-red-650 text-white rounded-xl px-4 py-2 font-black text-xs inline-flex items-center gap-1.5 shadow-[2px_2px_0px_#0f172a]">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout Session
+            </a>
+        </div>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Card 1: Total Scans -->
+        <div class="cartoon-card p-5 space-y-2 flex flex-col justify-between bg-white">
+            <div class="flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Scans Run</span>
+                <span class="p-1.5 bg-primary/10 rounded-lg text-primary border border-slate-200">
+                    <i data-lucide="file-code" class="w-4 h-4"></i>
+                </span>
+            </div>
+            <div>
+                <p class="text-3xl font-black text-slate-800">{{ stats.total_scans }}</p>
+                <p class="text-[10px] text-slate-400 font-bold mt-1">Files and compressed packages</p>
+            </div>
+        </div>
+
+        <!-- Card 2: Status Breakdown -->
+        <div class="cartoon-card p-5 space-y-2 flex flex-col justify-between bg-white">
+            <div class="flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Status Summary</span>
+                <span class="p-1.5 bg-primary/10 rounded-lg text-primary border border-slate-200">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                </span>
+            </div>
+            <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10px] font-bold">
+                    <span class="text-success flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-success"></span> Completed</span>
+                    <span class="text-slate-700 font-mono">{{ stats.status_counts.completed }}</span>
+                </div>
+                <div class="flex items-center justify-between text-[10px] font-bold">
+                    <span class="text-warning flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-warning animate-pulse"></span> Running</span>
+                    <span class="text-slate-700 font-mono">{{ stats.status_counts.pending + stats.status_counts.running }}</span>
+                </div>
+                <div class="flex items-center justify-between text-[10px] font-bold">
+                    <span class="text-error flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error"></span> Failed</span>
+                    <span class="text-slate-700 font-mono">{{ stats.status_counts.failed }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Vulnerabilities Tally -->
+        <div class="cartoon-card p-5 space-y-2 flex flex-col justify-between bg-white">
+            <div class="flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Threat Tallies</span>
+                <span class="p-1.5 bg-primary/10 rounded-lg text-primary border border-slate-200">
+                    <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                </span>
+            </div>
+            <div class="grid grid-cols-2 gap-1 text-[9px] font-mono font-bold">
+                <div class="bg-red-50 text-error px-1.5 py-0.5 rounded border border-red-200 flex justify-between">
+                    <span>CRIT:</span>
+                    <span>{{ stats.issue_sums.critical }}</span>
+                </div>
+                <div class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-200 flex justify-between">
+                    <span>HIGH:</span>
+                    <span>{{ stats.issue_sums.high }}</span>
+                </div>
+                <div class="bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded border border-yellow-200 flex justify-between">
+                    <span>MED:</span>
+                    <span>{{ stats.issue_sums.medium }}</span>
+                </div>
+                <div class="bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded border border-sky-200 flex justify-between">
+                    <span>LOW:</span>
+                    <span>{{ stats.issue_sums.low }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Database Storage -->
+        <div class="cartoon-card p-5 space-y-2 flex flex-col justify-between bg-white">
+            <div class="flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Database Engine</span>
+                <span class="p-1.5 bg-primary/10 rounded-lg text-primary border border-slate-200">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                </span>
+            </div>
+            <div>
+                <p class="text-3xl font-black text-slate-800">{{ stats.db_size_kb }} <span class="text-sm font-bold text-slate-500 font-sans">KB</span></p>
+                <p class="text-[10px] text-slate-400 font-bold mt-1">SQLite Driver storage footprint</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Main Data Sections Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Scans Log Manager (Left 2 columns) -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="border-b-2 border-slate-200 pb-2">
+                <h3 class="font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="file-text" class="w-4.5 h-4.5 text-primary"></i> Scan Record Manager
+                </h3>
+            </div>
+            
+            <div class="cartoon-card">
+                <div class="window-header bg-slate-900 text-white border-b-4 border-slate-900 flex items-center justify-between px-4 py-2 select-none">
+                    <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">all_scans.db</span>
+                </div>
+
+                <div class="overflow-x-auto w-full bg-white max-h-[500px] overflow-y-auto">
+                    <table class="table w-full text-xs text-slate-600 font-bold">
+                        <thead>
+                            <tr class="bg-slate-100 border-b-4 border-slate-900 text-slate-800 font-extrabold uppercase tracking-wider text-[10px]">
+                                <th class="pl-6 py-4">Target File</th>
+                                <th>Timestamp</th>
+                                <th>Threats</th>
+                                <th>Status</th>
+                                <th class="pr-6 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y-2 divide-slate-900">
+                            {% if not history %}
+                            <tr>
+                                <td colspan="5" class="text-center py-12 text-slate-400 font-bold">No scans found in database.</td>
+                            </tr>
+                            {% else %}
+                                {% for scan in history %}
+                                <tr class="hover:bg-slate-50 transition-colors" id="scan-row-{{ scan.id }}">
+                                    <td class="font-black text-slate-800 pl-6 py-4">
+                                        <div class="truncate max-w-[150px]" title="{{ scan.filename }}">{{ scan.filename }}</div>
+                                    </td>
+                                    <td class="text-slate-400 font-mono text-[9px]">
+                                        {{ scan.timestamp[:19].replace('T', ' ') }}
+                                    </td>
+                                    <td>
+                                        {% if scan.status == 'completed' %}
+                                        <span class="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5">
+                                            {{ scan.total_issues }} ({{ scan.critical_count }}C/{{ scan.high_count }}H)
+                                        </span>
+                                        {% else %}
+                                        <span class="text-[10px] font-mono text-slate-400">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="cartoon-badge border-2 border-slate-900 py-0.5 px-1.5 text-white text-[8px] shadow-none
+                                            {% if scan.status == 'completed' %} bg-success
+                                            {% elif scan.status == 'failed' %} bg-error
+                                            {% else %} bg-warning
+                                            {% endif %}">
+                                            {{ scan.status }}
+                                        </span>
+                                    </td>
+                                    <td class="pr-6 text-center">
+                                        <div class="inline-flex items-center gap-2">
+                                            <a href="/scans/{{ scan.id }}" class="cartoon-btn btn-xs bg-primary text-white px-2.5 py-0.5 flex items-center justify-center rounded-lg text-[9px]">
+                                                View
+                                            </a>
+                                            <button hx-delete="/scans/{{ scan.id }}"
+                                                    hx-confirm="Delete this scan permanently?"
+                                                    hx-target="#scan-row-{{ scan.id }}"
+                                                    hx-swap="outerHTML swap:0.4s"
+                                                    class="cartoon-btn btn-xs bg-red-500 text-white hover:bg-red-600 px-2 py-0.5 rounded-lg text-[9px]">
+                                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Logs Section (Right 1 column) -->
+        <div class="space-y-4">
+            <div class="border-b-2 border-slate-200 pb-2">
+                <h3 class="font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="history" class="w-4.5 h-4.5 text-primary"></i> System Audit Trail
+                </h3>
+            </div>
+            
+            <div class="cartoon-card">
+                <div class="window-header bg-slate-900 text-white border-b-4 border-slate-900 flex items-center justify-between px-4 py-2 select-none">
+                    <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">audit_logs.log</span>
+                </div>
+
+                <div class="p-4 bg-white max-h-[300px] overflow-y-auto space-y-3">
+                    {% if not audit_logs %}
+                    <p class="text-center text-slate-400 font-bold text-xs py-6">No operations logged yet.</p>
+                    {% else %}
+                        {% for log in audit_logs %}
+                        <div class="p-2 border-2 border-slate-900 rounded-xl bg-slate-50 text-[10px] leading-relaxed space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-slate-800 uppercase tracking-wide text-[9px]">
+                                    {{ log.action.replace('_', ' ') }}
+                                </span>
+                                <span class="text-slate-400 font-mono text-[8px]">{{ log.timestamp[11:19] }}</span>
+                            </div>
+                            <p class="text-slate-500 font-bold">{{ log.details }}</p>
+                            <div class="flex items-center justify-between text-[8px] text-slate-400 font-mono pt-0.5 border-t border-slate-200">
+                                <span>Actor: {{ log.username }}</span>
+                                <span>IP: {{ log.ip_address }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Danger Zone Box -->
+            <div class="cartoon-card border-red-500 shadow-[6px_6px_0px_#ef4444] p-5 space-y-4 bg-red-50/10">
+                <div>
+                    <h4 class="font-black text-red-600 text-xs uppercase tracking-wider flex items-center gap-1">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i> Danger Zone
+                    </h4>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1">Irreversible system commands.</p>
+                </div>
+                
+                <form action="/admin/wipe" method="POST" onsubmit="return confirm('WARNING: Are you absolutely sure you want to delete ALL scans, issues, and audit records? This action cannot be undone.');">
+                    <button type="submit" class="cartoon-btn btn-sm w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Purge Database Logs
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

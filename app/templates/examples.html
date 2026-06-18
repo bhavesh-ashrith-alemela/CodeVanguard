@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}CodeVanguard – Examples{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8 animate-slide-up">
+    
+    <!-- Title Section -->
+    <div class="border-b-4 border-slate-900 pb-4 text-center sm:text-left">
+        <h2 class="text-xl font-black text-slate-800 flex items-center justify-center sm:justify-start gap-1.5 uppercase tracking-wide">
+            <i data-lucide="code" class="w-5 h-5 text-primary"></i>
+            Vulnerable Code Examples
+        </h2>
+        <p class="text-xs text-slate-400 font-bold mt-1">
+            Quickly trigger scans using typical security flaw snippets. Click "Analyze Snippet" to execute a live SAST assessment and view fix recommendations.
+        </p>
+    </div>
+
+    <!-- Gallery Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Snippet 1: SQL Injection -->
+        <div class="cartoon-card flex flex-col justify-between">
+            <div class="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
+                <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">level_1_sqli.py</span>
+                <span class="cartoon-badge bg-error border-2 border-slate-900 text-white text-[8px] px-1.5 shadow-none">CRITICAL BOSS</span>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-grow flex flex-col justify-between bg-white">
+                <div class="space-y-2">
+                    <h3 class="font-black text-slate-800 text-sm uppercase">Level 1: SQL Injection (SQLi)</h3>
+                    <p class="text-xs text-slate-500 font-bold leading-relaxed">
+                        Uses raw string formatting to inject parameter inputs directly into an SQL execution cursor, allowing arbitrary database extraction.
+                    </p>
+                    <pre class="bg-slate-900 p-4 rounded-xl text-[10px] font-mono text-sky-200 border-2 border-slate-900 overflow-x-auto h-44"><code>import sqlite3
+
+def authenticate(user, password):
+    # VULNERABLE: Direct formatting
+    conn = sqlite3.connect("prod.db")
+    cursor = conn.cursor()
+    query = "SELECT * FROM admin WHERE user='%s' AND pass='%s'" % (user, password)
+    cursor.execute(query)
+    return cursor.fetchone()</code></pre>
+                </div>
+                
+                <form action="/api/scan" method="POST" class="pt-2">
+                    <textarea name="code" class="hidden">import sqlite3
+
+def authenticate(user, password):
+    # VULNERABLE: Direct formatting
+    conn = sqlite3.connect("prod.db")
+    cursor = conn.cursor()
+    query = "SELECT * FROM admin WHERE user='%s' AND pass='%s'" % (user, password)
+    cursor.execute(query)
+    return cursor.fetchone()</textarea>
+                    <button type="submit" class="cartoon-btn w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5">
+                        <i data-lucide="play" class="w-4 h-4"></i> Scan SQL Injection
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Snippet 2: Command Injection -->
+        <div class="cartoon-card flex flex-col justify-between">
+            <div class="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
+                <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-355">level_2_command.py</span>
+                <span class="cartoon-badge bg-error border-2 border-slate-900 text-white text-[8px] px-1.5 shadow-none">CRITICAL BOSS</span>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-grow flex flex-col justify-between bg-white">
+                <div class="space-y-2">
+                    <h3 class="font-black text-slate-800 text-sm uppercase">Level 2: Command Injection</h3>
+                    <p class="text-xs text-slate-500 font-bold leading-relaxed">
+                        Runs terminal operations using `subprocess.Popen` with `shell=True` and raw string inputs, exposing the server to command injection.
+                    </p>
+                    <pre class="bg-slate-900 p-4 rounded-xl text-[10px] font-mono text-sky-200 border-2 border-slate-900 overflow-x-auto h-44"><code>import subprocess
+
+def run_diagnostic(ip_address):
+    # VULNERABLE: shell=True exposes shell command injections
+    cmd = f"ping -c 4 {ip_address}"
+    status = subprocess.Popen(
+        cmd, 
+        shell=True, 
+        stdout=subprocess.PIPE
+    )
+    return status.communicate()</code></pre>
+                </div>
+                
+                <form action="/api/scan" method="POST" class="pt-2">
+                    <textarea name="code" class="hidden">import subprocess
+
+def run_diagnostic(ip_address):
+    # VULNERABLE: shell=True exposes shell command injections
+    cmd = f"ping -c 4 {ip_address}"
+    status = subprocess.Popen(
+        cmd, 
+        shell=True, 
+        stdout=subprocess.PIPE
+    )
+    return status.communicate()</textarea>
+                    <button type="submit" class="cartoon-btn w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5">
+                        <i data-lucide="play" class="w-4 h-4"></i> Scan Command Injection
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Snippet 3: Hardcoded Secrets -->
+        <div class="cartoon-card flex flex-col justify-between">
+            <div class="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
+                <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">level_3_secrets.py</span>
+                <span class="cartoon-badge bg-orange-500 border-2 border-slate-900 text-white text-[8px] px-1.5 shadow-none">HIGH THREAT</span>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-grow flex flex-col justify-between bg-white">
+                <div class="space-y-2">
+                    <h3 class="font-black text-slate-800 text-sm uppercase">Level 3: Credentials Leak</h3>
+                    <p class="text-xs text-slate-500 font-bold leading-relaxed">
+                        Stores active database passwords and third-party API secret tokens in plaintext inside raw variables.
+                    </p>
+                    <pre class="bg-slate-900 p-4 rounded-xl text-[10px] font-mono text-sky-200 border-2 border-slate-900 overflow-x-auto h-44"><code>import requests
+
+DB_PASSWORD = "super_admin_pass_12903_vanguard"
+STRIPE_API_TOKEN = "sk_live_51Msz32JDjwiSldl20xOsp"
+
+def fetch_billing_details(user_id):
+    headers = {"Authorization": f"Bearer {STRIPE_API_TOKEN}"}
+    r = requests.get(f"https://api.stripe.com/v1/customers/{user_id}", headers=headers)
+    return r.json()</code></pre>
+                </div>
+                
+                <form action="/api/scan" method="POST" class="pt-2">
+                    <textarea name="code" class="hidden">import requests
+
+DB_PASSWORD = "super_admin_pass_12903_vanguard"
+STRIPE_API_TOKEN = "sk_live_51Msz32JDjwiSldl20xOsp"
+
+def fetch_billing_details(user_id):
+    headers = {"Authorization": f"Bearer {STRIPE_API_TOKEN}"}
+    r = requests.get(f"https://api.stripe.com/v1/customers/{user_id}", headers=headers)
+    return r.json()</textarea>
+                    <button type="submit" class="cartoon-btn w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5">
+                        <i data-lucide="play" class="w-4 h-4"></i> Scan Credentials Leak
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Snippet 4: Weak Cryptography -->
+        <div class="cartoon-card flex flex-col justify-between">
+            <div class="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
+                <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">level_4_sandbox.py</span>
+                <span class="cartoon-badge bg-orange-500 border-2 border-slate-900 text-white text-[8px] px-1.5 shadow-none">HIGH THREAT</span>
+            </div>
+            
+            <div class="p-6 space-y-4 flex-grow flex flex-col justify-between bg-white">
+                <div class="space-y-2">
+                    <h3 class="font-black text-slate-800 text-sm uppercase">Level 4: Crypto & Deserialization</h3>
+                    <p class="text-xs text-slate-500 font-bold leading-relaxed">
+                        Employs weak MD5 hashing and dangerous `pickle.loads` deserialization, which opens access for Remote Code Execution.
+                    </p>
+                    <pre class="bg-slate-900 p-4 rounded-xl text-[10px] font-mono text-sky-200 border-2 border-slate-900 overflow-x-auto h-44"><code>import hashlib
+import pickle
+
+def compute_insecure_md5(payload):
+    # VULNERABLE: md5 is mathematically broken
+    h = hashlib.md5(payload.encode())
+    return h.hexdigest()
+
+def unpack_session_data(pickled_data):
+    # VULNERABLE: pickle.loads enables arbitrary code execution
+    return pickle.loads(pickled_data)</code></pre>
+                </div>
+                
+                <form action="/api/scan" method="POST" class="pt-2">
+                    <textarea name="code" class="hidden">import hashlib
+import pickle
+
+def compute_insecure_md5(payload):
+    # VULNERABLE: md5 is mathematically broken
+    h = hashlib.md5(payload.encode())
+    return h.hexdigest()
+
+def unpack_session_data(pickled_data):
+    # VULNERABLE: pickle.loads enables arbitrary code execution
+    return pickle.loads(pickled_data)</textarea>
+                    <button type="submit" class="cartoon-btn w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5">
+                        <i data-lucide="play" class="w-4 h-4"></i> Scan Weak Cryptography
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

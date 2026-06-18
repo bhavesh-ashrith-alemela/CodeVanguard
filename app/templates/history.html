@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}CodeVanguard – History{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 animate-slide-up">
+    
+    <!-- Title Area -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-4 border-slate-900 pb-4">
+        <div>
+            <h2 class="text-xl font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                <i data-lucide="history" class="w-5 h-5 text-primary"></i>
+                Scan History Logs
+            </h2>
+            <p class="text-xs text-slate-550 font-bold">
+                Audits list of previous codebase runs, reports, and compliance scores.
+            </p>
+        </div>
+        
+        <a href="/" class="cartoon-btn btn-sm rounded-xl px-4 py-2 font-black text-xs inline-flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Launch Scan
+        </a>
+    </div>
+
+    <!-- Leaderboard Table Container (Cartoon Window Style) -->
+    <div class="cartoon-card">
+        <!-- Window Decor header -->
+        <div class="window-header bg-slate-900 text-white border-b-4 border-slate-900 flex items-center justify-between px-4 py-2 select-none">
+            <span class="text-[9px] font-black uppercase tracking-widest font-mono text-slate-350">scan_history.db</span>
+            <div class="window-dots flex gap-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto w-full bg-white">
+            <table class="table w-full text-xs text-slate-600 font-bold">
+                <thead>
+                    <tr class="bg-slate-100 border-b-4 border-slate-900 text-slate-800 font-extrabold uppercase tracking-wider text-[10px]">
+                        <th class="pl-6 py-4">Scan Target</th>
+                        <th>Scan Timestamp</th>
+                        <th>Archive Size</th>
+                        <th>Status</th>
+                        <th>Threat Tally</th>
+                        <th class="pr-6 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y-2 divide-slate-900">
+                    {% if not history %}
+                    <tr>
+                        <td colspan="6" class="text-center py-12 text-slate-400">
+                            <div class="max-w-xs mx-auto space-y-3">
+                                <span class="p-3 bg-primary/10 rounded-xl text-primary inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
+                                    <i data-lucide="award" class="w-8 h-8"></i>
+                                </span>
+                                <p class="font-black text-slate-800 uppercase">No scans logged yet</p>
+                                <p class="text-[10px] font-bold text-slate-400">Run codebase scans on the homepage to view scan history logs.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                        {% for scan in history %}
+                        <tr class="hover:bg-slate-50 transition-colors duration-150" id="scan-row-{{ scan.id }}">
+                            <td class="font-black text-slate-800 pl-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="p-1.5 bg-primary/10 text-primary rounded-lg border border-slate-200">
+                                        <i data-lucide="{{ 'folder-archive' if scan.filename.endswith('.zip') else 'file-code' }}" class="w-4 h-4"></i>
+                                    </span>
+                                    <span class="truncate max-w-[200px] sm:max-w-xs text-xs" title="{{ scan.filename }}">{{ scan.filename }}</span>
+                                </div>
+                            </td>
+                            <td class="text-slate-400 font-mono text-[10px]">
+                                {{ scan.timestamp[:19].replace('T', ' ') }}
+                            </td>
+                            <td class="text-slate-400">
+                                {{ (scan.file_size / 1024) | round(1) }} KB
+                            </td>
+                            <td>
+                                <span class="cartoon-badge border-2 border-slate-900 py-1 px-2 text-white shadow-none
+                                    {% if scan.status == 'completed' %} bg-success
+                                    {% elif scan.status == 'failed' %} bg-error
+                                    {% else %} bg-warning animate-pulse
+                                    {% endif %}">
+                                    {{ scan.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if scan.status == 'completed' %}
+                                    <div class="flex items-center gap-1 text-[10px] font-mono">
+                                        <span class="badge badge-sm bg-error border border-slate-900 text-white font-bold" title="Critical">{{ scan.critical_count }}</span>
+                                        <span class="badge badge-sm bg-orange-500 border border-slate-900 text-white font-bold" title="High">{{ scan.high_count }}</span>
+                                        <span class="badge badge-sm bg-yellow-500 border border-slate-900 text-black font-bold" title="Medium">{{ scan.medium_count }}</span>
+                                        <span class="badge badge-sm bg-info border border-slate-900 text-white font-bold" title="Low">{{ scan.low_count }}</span>
+                                        <span class="text-slate-400 font-sans ml-1">({{ scan.total_issues }} threats)</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-xs text-slate-400 font-mono font-bold">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="pr-6 text-center">
+                                <div class="inline-flex items-center gap-3">
+                                    <!-- View Report -->
+                                    <a href="/scans/{{ scan.id }}" class="cartoon-btn btn-xs bg-primary text-white px-3 py-1 flex items-center justify-center rounded-lg text-[10px]">
+                                        Open Report
+                                    </a>
+                                    
+                                    {% if admin %}
+                                    <!-- Delete Row (HTMX) -->
+                                    <button hx-delete="/scans/{{ scan.id }}"
+                                            hx-confirm="Are you sure you want to permanently delete this scan and all its findings?"
+                                            hx-target="#scan-row-{{ scan.id }}"
+                                            hx-swap="outerHTML swap:0.4s"
+                                            class="cartoon-btn btn-xs bg-red-500 text-white hover:bg-red-600 px-2 py-1 rounded-lg text-[10px]"
+                                            title="Delete Scan">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    tr.htmx-swapping {
+        opacity: 0;
+        transform: translateX(10px);
+        transition: all 0.4s ease;
+    }
+</style>
+{% endblock %}

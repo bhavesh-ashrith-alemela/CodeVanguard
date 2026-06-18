@@ -1,0 +1,30 @@
+<div class="card bg-white border border-error/20 p-8 rounded-xl shadow-sm text-center space-y-6 max-w-xl mx-auto animate-slide-up w-full">
+    <div class="space-y-4">
+        <span class="p-3.5 bg-error/10 rounded-full text-error inline-block">
+            <i data-lucide="alert-triangle" class="w-10 h-10"></i>
+        </span>
+        <h3 class="text-lg font-extrabold text-slate-800 uppercase tracking-tight">Scan Quest Interrupted</h3>
+        <p class="text-xs text-slate-500">
+            An unexpected error occurred while executing the static analysis engines. Please inspect the log outputs below.
+        </p>
+    </div>
+    
+    {% if scan.error_message %}
+    <div class="bg-slate-50 p-4 rounded-lg text-left border border-slate-200 font-mono text-[10px] overflow-x-auto text-error leading-relaxed">
+        <strong>Traceback details:</strong>
+        <pre class="mt-2 whitespace-pre-wrap">{{ scan.error_message }}</pre>
+    </div>
+    {% endif %}
+    
+    <div class="pt-2">
+        <a href="/" class="btn btn-sm btn-error btn-outline rounded-lg font-bold gap-1.5">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Return Home
+        </a>
+    </div>
+</div>
+
+<script>
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+</script>

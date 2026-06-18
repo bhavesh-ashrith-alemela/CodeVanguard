@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}CodeVanguard – Scan Terminal{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-12 animate-slide-up">
+    
+    <!-- Hero / Headline Section -->
+    <div class="text-center space-y-4 py-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border-4 border-slate-900 bg-white shadow-[2px_2px_0px_#000] text-primary text-xs font-black tracking-widest uppercase">
+            <span class="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></span>
+            DEFENSE STATION ONLINE
+        </div>
+        <h1 class="text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+            SECURE YOUR CODEBASE <br class="hidden sm:inline">
+            <span class="text-primary uppercase tracking-wide text-3xl md:text-4xl font-black block mt-2">Level Up Your Defenses</span>
+        </h1>
+        <p class="max-w-xl mx-auto text-slate-500 text-xs font-bold leading-relaxed">
+            Concurrently execute Bandit AST and Semgrep pattern checkers. Find security defects and review side-by-side secure patches to clear the level!
+        </p>
+    </div>
+
+    <!-- Main Scanner Box (Cartoon Window Style) -->
+    <div class="cartoon-card">
+        
+        <!-- Window Decor header -->
+        <div class="window-header bg-slate-900 text-white border-b-4 border-slate-900 flex items-center justify-between px-4 py-2 select-none">
+            <div class="window-dots flex gap-1.5">
+                <span class="w-3.5 h-3.5 rounded-full bg-red-400 border-2 border-slate-900"></span>
+                <span class="w-3.5 h-3.5 rounded-full bg-yellow-400 border-2 border-slate-900"></span>
+                <span class="w-3.5 h-3.5 rounded-full bg-green-400 border-2 border-slate-900"></span>
+            </div>
+            <span class="text-[10px] font-black uppercase tracking-widest font-mono text-slate-300">security_scan_terminal.py</span>
+            <div class="w-12"></div> <!-- spacer -->
+        </div>
+
+        <div class="p-6 md:p-8 space-y-6">
+            <!-- Tab Controllers -->
+            <div role="tablist" class="flex items-center justify-center gap-3 mb-8 max-w-md mx-auto">
+                <button type="button" role="tab" id="tab-btn-upload" class="cartoon-btn active inline-flex items-center justify-center gap-1.5 text-xs px-5 py-2 rounded-full" onclick="switchTab('upload-tab', this)">
+                    <i data-lucide="upload-cloud" class="w-4 h-4"></i> Upload File / ZIP
+                </button>
+                <button type="button" role="tab" id="tab-btn-paste" class="cartoon-btn inactive inline-flex items-center justify-center gap-1.5 text-xs px-5 py-2 rounded-full" onclick="switchTab('paste-tab', this)">
+                    <i data-lucide="text-cursor" class="w-4 h-4"></i> Paste Source
+                </button>
+            </div>
+
+            <!-- Forms Container -->
+            <form id="upload-form" action="/api/scan" method="POST" enctype="multipart/form-data" class="space-y-6">
+                
+                <!-- Tab 1: Upload -->
+                <div id="upload-tab" class="tab-content block">
+                    <div class="space-y-4">
+                        <label id="drop-zone" class="flex flex-col items-center justify-center w-full h-64 border-4 border-dashed border-slate-900 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 shadow-[4px_4px_0px_#cbd5e1] hover:shadow-[2px_2px_0px_#0f172a] transition-all duration-200">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
+                                <span class="p-3.5 bg-primary/10 rounded-2xl text-primary mb-4 border-4 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
+                                    <i data-lucide="shield" class="w-8 h-8"></i>
+                                </span>
+                                <p class="mb-1 text-sm text-slate-800 font-extrabold uppercase tracking-wide">
+                                    Drag and drop codebase
+                                </p>
+                                <p class="text-[10px] text-slate-400 font-bold">
+                                    Supports single <span class="text-primary font-bold font-mono">.py</span> files or compressed <span class="text-primary font-bold font-mono">.zip</span> archives (Max 10MB)
+                                </p>
+                            </div>
+                            <input id="file-input" type="file" name="file" accept=".py,.zip" class="hidden" />
+                        </label>
+                        
+                        <!-- Selected File Metadata Details (Initially hidden) -->
+                        <div id="file-details" class="hidden animate-slide-up text-center">
+                            <div id="file-info" class="inline-block"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Paste Code -->
+                <div id="paste-tab" class="tab-content hidden space-y-4">
+                    <div class="form-control">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Input Buffer</span>
+                            <span class="text-[9px] text-slate-400 font-mono font-bold">pasted_code.py</span>
+                        </div>
+                        <textarea name="code" placeholder="# Paste your Python code here...&#10;import sqlite3&#10;def get_user(username):&#10;    conn = sqlite3.connect('database.db')&#10;    cursor = conn.cursor()&#10;    cursor.execute(f&quot;SELECT * FROM users WHERE username = '{username}'&quot;)&#10;    return cursor.fetchone()" class="cartoon-input textarea h-64 w-full font-mono text-xs p-4 leading-relaxed text-slate-800 focus:outline-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Submit trigger button -->
+                <div class="text-center pt-2">
+                    <button id="submit-scan-btn" type="submit" disabled class="cartoon-btn btn-lg px-12 py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-center mx-auto gap-2">
+                        <i data-lucide="zap" class="w-5 h-5 animate-bounce"></i> Initialize Scan Quest
+                    </button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick instructions / value props (Gamified Lobby achievements) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div class="cartoon-card p-6 space-y-3">
+            <span class="p-2.5 bg-primary/10 rounded-xl text-primary inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
+                <i data-lucide="target" class="w-5 h-5"></i>
+            </span>
+            <h3 class="font-black text-slate-800 text-xs uppercase tracking-wider">Quest 1: Scan & Detect</h3>
+            <p class="text-xs text-slate-500 font-bold leading-relaxed">Concurrently execute Bandit AST analyzers and Semgrep pattern matchers to uncover security defects and credentials leaks.</p>
+        </div>
+        
+        <div class="cartoon-card p-6 space-y-3">
+            <span class="p-2.5 bg-primary/10 rounded-xl text-primary inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </span>
+            <h3 class="font-black text-slate-800 text-xs uppercase tracking-wider">Quest 2: Remediation</h3>
+            <p class="text-xs text-slate-500 font-bold leading-relaxed">Review context-rich code snippets matched with clean, side-by-side secured patches to level-up code security.</p>
+        </div>
+        
+        <div class="cartoon-card p-6 space-y-3">
+            <span class="p-2.5 bg-primary/10 rounded-xl text-primary inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
+                <i data-lucide="award" class="w-5 h-5"></i>
+            </span>
+            <h3 class="font-black text-slate-800 text-xs uppercase tracking-wider">Quest 3: Exporters</h3>
+            <p class="text-xs text-slate-500 font-bold leading-relaxed">Synthesize final scan scores and achievements into standard PDF, HTML, JSON, or CSV compliance formats.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabId, tabBtn) {
+        // Toggle tab block display
+        const contents = document.querySelectorAll(".tab-content");
+        contents.forEach(content => {
+            content.classList.add("hidden");
+            content.classList.remove("block");
+        });
+        
+        const activeContent = document.getElementById(tabId);
+        activeContent.classList.remove("hidden");
+        activeContent.classList.add("block");
+        
+        // Reset and apply button active/inactive states
+        const uploadBtn = document.getElementById("tab-btn-upload");
+        const pasteBtn = document.getElementById("tab-btn-paste");
+        
+        if (tabId === "upload-tab") {
+            uploadBtn.classList.add("active");
+            uploadBtn.classList.remove("inactive");
+            pasteBtn.classList.add("inactive");
+            pasteBtn.classList.remove("active");
+            
+            const fileInput = document.getElementById("file-input");
+            document.getElementById("submit-scan-btn").disabled = (fileInput.files.length === 0);
+        } else {
+            pasteBtn.classList.add("active");
+            pasteBtn.classList.remove("inactive");
+            uploadBtn.classList.add("inactive");
+            uploadBtn.classList.remove("active");
+            
+            document.getElementById("submit-scan-btn").disabled = false;
+        }
+    }
+</script>
+{% endblock %}

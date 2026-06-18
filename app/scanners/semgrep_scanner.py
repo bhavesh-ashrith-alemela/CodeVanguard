@@ -1,0 +1,89 @@
+import json
+import os
+import asyncio
+from app.scanners.parser import get_code_snippet, normalize_severity
+
+class SemgrepScanner:
+    def __init__(self, target_dir: str):
+        self.target_dir = os.path.abspath(target_dir)
+
+    async def scan(self) -> list:
+        """
+        Executes Semgrep asynchronously and returns a list of parsed issues.
+        """
+        venv_bin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "Scripts", "semgrep.exe")
+        if not os.path.exists(venv_bin):
+            venv_bin = "semgrep"
+
+        # Construct semgrep command
+        # semgrep scan --config=auto --json <target_dir>
+        # We can also add --quiet to suppress extra output
+        cmd = [venv_bin, "scan", "--config=auto", "--json", "--quiet", self.target_dir]
+        
+        try:
+            # Weasyprint/semgrep can take some time, let's execute it
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            output_str = stdout.decode("utf-8", errors="ignore").strip()
+            if not output_str:
+                return []
+                
+            try:
+                data = json.loads(output_str)
+            except json.JSONDecodeError:
+                # Try finding JSON block start
+                json_start = output_str.find("{")
+                if json_start != -1:
+                    data = json.loads(output_str[json_start:])
+                else:
+                    return []
+                    
+            issues = []
+            results = data.get("results", [])
+            for res in results:
+                # Semgrep paths are typically relative to where it is run, or absolute
+                raw_path = res.get("path", "")
+                if not os.path.isabs(raw_path):
+                    full_path = os.path.join(self.target_dir, raw_path)
+                else:
+                    full_path = raw_path
+                    
+                rel_path = os.path.relpath(os.path.abspath(full_path), self.target_dir)
+                rel_path = rel_path.replace("\\", "/")
+                
+                start_info = res.get("start", {})
+                line_no = start_info.get("line", 1)
+                col_no = start_info.get("col", 0)
+                
+                check_id = res.get("check_id", "Unknown")
+                
+                extra = res.get("extra", {})
+                raw_severity = extra.get("severity", "WARNING")
+                message = extra.get("message", "")
+                
+                # Retrieve clean snippet
+                snippet = get_code_snippet(full_path, line_no)
+                if not snippet:
+                    snippet = extra.get("lines", "")
+                    
+                issues.append({
+                    "scanner": "semgrep",
+                    "rule_id": check_id,
+                    "severity": normalize_severity("semgrep", raw_severity, check_id),
+                    "message": message,
+                    "filepath": rel_path,
+                    "line_number": line_no,
+                    "col_number": col_no,
+                    "code_snippet": snippet
+                })
+                
+            return issues
+            
+        except Exception as e:
+            print(f"Semgrep execution error: {e}")
+            return []

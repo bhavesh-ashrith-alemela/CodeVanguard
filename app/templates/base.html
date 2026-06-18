@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="vanguard">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CodeVanguard – Security Scanner{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS & DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom styling config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link rel="stylesheet" href="/static/css/custom.css">
+</head>
+<body class="min-h-screen flex flex-col font-sans bg-base-200 grid-bg text-base-content antialiased">
+    
+    <!-- Cartoonish Navbar -->
+    <div class="sticky top-0 z-50 w-full bg-white border-b-4 border-slate-900">
+        <div class="navbar max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex-1">
+                <a href="/" class="flex items-center gap-2 font-black text-xl tracking-tight text-slate-900 hover:opacity-95 transition-all duration-300">
+                    <svg class="w-7 h-7 text-primary flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="M9 11l3 3 4-4"/>
+                    </svg>
+                    <span class="font-extrabold tracking-tight text-lg md:text-xl">CodeVanguard</span>
+                </a>
+            </div>
+            
+            <div class="flex-none gap-2">
+                <ul class="menu menu-horizontal px-1 font-extrabold gap-2 hidden md:flex text-xs">
+                    <li>
+                        <a href="/" class="hover:bg-primary/10 hover:text-primary rounded-lg transition-all py-1.5 px-3 border-2 border-transparent {% if request.url.path == '/' %} text-primary bg-primary/5 border-slate-900 {% endif %}">
+                            <i data-lucide="plus-circle" class="w-4 h-4 inline mr-1"></i> Scan
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/examples" class="hover:bg-primary/10 hover:text-primary rounded-lg transition-all py-1.5 px-3 border-2 border-transparent {% if request.url.path == '/examples' %} text-primary bg-primary/5 border-slate-900 {% endif %}">
+                            <i data-lucide="code" class="w-4 h-4 inline mr-1"></i> Examples
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/history" class="hover:bg-primary/10 hover:text-primary rounded-lg transition-all py-1.5 px-3 border-2 border-transparent {% if request.url.path == '/history' %} text-primary bg-primary/5 border-slate-900 {% endif %}">
+                            <i data-lucide="history" class="w-4 h-4 inline mr-1"></i> History
+                        </a>
+                    </li>
+                    {% if admin %}
+                    <li>
+                        <a href="/admin/dashboard" class="hover:bg-primary/10 hover:text-primary rounded-lg transition-all py-1.5 px-3 border-2 border-transparent {% if request.url.path.startswith('/admin') %} text-primary bg-primary/5 border-slate-900 {% endif %}">
+                            <i data-lucide="shield" class="w-4 h-4 inline mr-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/logout" class="hover:bg-red-50 hover:text-red-600 text-red-500 rounded-lg transition-all py-1.5 px-3 border-2 border-transparent">
+                            <i data-lucide="log-out" class="w-4 h-4 inline mr-1"></i> Logout
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="/admin/login" class="hover:bg-primary/10 hover:text-primary rounded-lg transition-all py-1.5 px-3 border-2 border-transparent {% if request.url.path == '/admin/login' %} text-primary bg-primary/5 border-slate-900 {% endif %}">
+                            <i data-lucide="lock" class="w-4 h-4 inline mr-1"></i> Admin
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- Mobile Dropdown -->
+                <div class="dropdown dropdown-end md:hidden">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle border-2 border-slate-900 bg-white shadow-[2px_2px_0px_#0f172a] hover:bg-slate-50">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </div>
+                    <ul tabindex="0" class="menu dropdown-content mt-3 z-[1] p-2 shadow-[4px_4px_0px_#0f172a] bg-white border-4 border-slate-900 rounded-xl w-52 text-slate-800 font-extrabold text-xs">
+                        <li><a href="/"><i data-lucide="plus-circle" class="w-4 h-4 mr-2"></i>Scan</a></li>
+                        <li><a href="/examples"><i data-lucide="code" class="w-4 h-4 mr-2"></i>Examples</a></li>
+                        <li><a href="/history"><i data-lucide="history" class="w-4 h-4 mr-2"></i>History</a></li>
+                        <div class="divider my-1 border-t-2 border-slate-200"></div>
+                        {% if admin %}
+                        <li><a href="/admin/dashboard" class="text-primary"><i data-lucide="shield" class="w-4 h-4 mr-2 text-primary"></i>Dashboard</a></li>
+                        <li><a href="/admin/logout" class="text-red-500"><i data-lucide="log-out" class="w-4 h-4 mr-2 text-red-500"></i>Logout</a></li>
+                        {% else %}
+                        <li><a href="/admin/login"><i data-lucide="lock" class="w-4 h-4 mr-2"></i>Admin Portal</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast container for notifications -->
+    <div id="toast-container" class="toast toast-end toast-bottom z-50 pointer-events-none"></div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer footer-center p-8 bg-white text-slate-500 border-t-4 border-slate-900 mt-auto">
+        <aside>
+            <div class="flex items-center gap-1.5 font-black text-slate-800 mb-1 justify-center">
+                <svg class="w-5 h-5 text-primary flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 11l3 3 4-4"/>
+                </svg> CodeVanguard
+            </div>
+            <p class="text-xs font-bold">Quest: Scan. Detect. Secure. In Seconds.</p>
+            <p class="text-[9px] mt-1 text-slate-400 font-bold">Portfolio Showcase &copy; 2026. Made with FastAPI + HTMX + DaisyUI.</p>
+        </aside>
+    </footer>
+
+    <!-- App Script -->
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Initialize Lucide icons on load
+        lucide.createIcons();
+    </script>
+</body>
+</html>

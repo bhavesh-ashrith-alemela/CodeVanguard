@@ -1,0 +1,393 @@
+<!-- Calculate Gamified Security Grade and HP in Jinja2 -->
+{% set total_critical = scan.critical_count %}
+{% set total_high = scan.high_count %}
+{% set total_medium = scan.medium_count %}
+{% set total_low = scan.low_count %}
+
+{% if total_critical > 0 or total_high > 2 %}
+    {% set grade = "F" %}
+    {% set hp = 20 %}
+    {% set rating_color = "text-error border-error bg-red-50 shadow-[3px_3px_0px_#000]" %}
+    {% set hp_bar_color = "bg-error" %}
+    {% set status_title = "SHIELD BROKEN" %}
+    {% set status_desc = "Vulnerabilities detected. Defeat the bosses below to repair the shield." %}
+    {% set xp_gained = "+50 XP (Stage Initiated)" %}
+{% elif total_high > 0 or total_medium > 4 %}
+    {% set grade = "C" %}
+    {% set hp = 55 %}
+    {% set rating_color = "text-orange-500 border-orange-500 bg-orange-50 shadow-[3px_3px_0px_#000]" %}
+    {% set hp_bar_color = "bg-orange-500" %}
+    {% set status_title = "SHIELD WARNING" %}
+    {% set status_desc = "Significant security threats found. Review the remediation blueprints." %}
+    {% set xp_gained = "+200 XP (Stage Cleared)" %}
+{% elif total_medium > 0 %}
+    {% set grade = "B" %}
+    {% set hp = 80 %}
+    {% set rating_color = "text-yellow-600 border-yellow-500 bg-yellow-50 shadow-[3px_3px_0px_#000]" %}
+    {% set hp_bar_color = "bg-yellow-500" %}
+    {% set status_title = "SHIELD STABLE" %}
+    {% set status_desc = "Minor warnings found. Fix them to upgrade your shield to maximum capacity." %}
+    {% set xp_gained = "+450 XP (Advanced Defender)" %}
+{% elif total_low > 0 %}
+    {% set grade = "A" %}
+    {% set hp = 95 %}
+    {% set rating_color = "text-info border-info bg-sky-50 shadow-[3px_3px_0px_#000]" %}
+    {% set hp_bar_color = "bg-info" %}
+    {% set status_title = "SHIELD SECURE" %}
+    {% set status_desc = "Excellent code structure. Clean imports and safe syntax usage throughout." %}
+    {% set xp_gained = "+750 XP (Champion Builder)" %}
+{% else %}
+    {% set grade = "S" %}
+    {% set hp = 100 %}
+    {% set rating_color = "text-success border-success bg-green-50 shadow-[3px_3px_0px_#000]" %}
+    {% set hp_bar_color = "bg-success" %}
+    {% set status_title = "FLAWLESS RUN!" %}
+    {% set status_desc = "Zero security defects found. Your codebase is officially impenetrable." %}
+    {% set xp_gained = "+1200 XP (PERFECT SCORE!)" %}
+{% endif %}
+
+<div class="space-y-8 animate-slide-up w-full text-slate-800">
+    
+    <!-- Top Export Panel (Cartoon Window Style) -->
+    <div class="cartoon-card">
+        <div class="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
+            <span class="text-[10px] font-black uppercase tracking-widest font-mono text-slate-300">report_exporter_subroutine.sh</span>
+            <div class="window-dots flex gap-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+            </div>
+        </div>
+        <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Compliance Logs:</span>
+                <a href="/scans/{{ scan.id }}/export/pdf" class="cartoon-btn btn-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 flex items-center gap-1 rounded-lg">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF
+                </a>
+                <a href="/scans/{{ scan.id }}/export/html" class="cartoon-btn btn-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 flex items-center gap-1 rounded-lg">
+                    <i data-lucide="html5" class="w-3.5 h-3.5"></i> HTML
+                </a>
+                <a href="/scans/{{ scan.id }}/export/json" class="cartoon-btn btn-xs bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 rounded-lg">
+                    <i data-lucide="braces" class="w-3.5 h-3.5"></i> JSON
+                </a>
+                <a href="/scans/{{ scan.id }}/export/csv" class="cartoon-btn btn-xs bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 rounded-lg">
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i> CSV
+                </a>
+            </div>
+            
+            <div class="text-[10px] text-slate-400 font-mono font-bold">
+                COMPLETED RUN: {{ scan.timestamp[:19].replace('T', ' ') }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Gamified HUD Panel -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- HUD Card 1: Shield Capacity and Grade -->
+        <div class="cartoon-card p-6 space-y-4 lg:col-span-2 flex flex-col justify-between">
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Shield Integrity Monitor</span>
+                    <span class="text-xs font-black text-primary font-mono uppercase tracking-wider">{{ status_title }}</span>
+                </div>
+                
+                <!-- HP Progress Bar -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-[10px] font-mono font-black text-slate-600 uppercase">
+                        <span>Shield capacity: {{ hp }} HP / 100 HP</span>
+                        <span>Quest XP: <span class="text-primary font-black">{{ xp_gained }}</span></span>
+                    </div>
+                    <div class="cartoon-bar">
+                        <div class="cartoon-bar-fill {{ hp_bar_color }}" style="width: {{ hp }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-500 font-bold leading-relaxed pt-2 border-t border-slate-100 mt-2">
+                <strong>Vanguard evaluation:</strong> {{ status_desc }}
+            </p>
+        </div>
+
+        <!-- HUD Card 2: Security Letter Grade (Cartoon Circle) -->
+        <div class="cartoon-card p-6 flex flex-row items-center gap-6 justify-center">
+            <div class="w-20 h-20 rounded-full border-4 border-slate-900 flex items-center justify-center font-black text-3xl {{ rating_color }}">
+                {{ grade }}
+            </div>
+            <div class="space-y-1 text-left">
+                <div class="text-xs font-black text-slate-400 uppercase tracking-widest">Rank Score</div>
+                <div class="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    {% if grade == 'S' or grade == 'A' %} Secure Cleared {% else %} Stage Insecure {% endif %}
+                </div>
+                <div class="text-[9px] text-slate-400 font-bold uppercase">Evaluated by Boss Threats</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Stats Summary Tally Row -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <!-- Total -->
+        <div class="cartoon-card p-4 text-center space-y-1">
+            <div class="text-2xl font-black text-slate-800">{{ scan.total_issues }}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-wider">Total Threats</div>
+        </div>
+        <!-- Critical -->
+        <div class="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-error">
+            <div class="text-2xl font-black text-error">{{ scan.critical_count }}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-wider">Critical</div>
+        </div>
+        <!-- High -->
+        <div class="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-orange-500">
+            <div class="text-2xl font-black text-orange-500">{{ scan.high_count }}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-wider">High</div>
+        </div>
+        <!-- Medium -->
+        <div class="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-yellow-500">
+            <div class="text-2xl font-black text-yellow-600">{{ scan.medium_count }}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-wider">Medium</div>
+        </div>
+        <!-- Low -->
+        <div class="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-info">
+            <div class="text-2xl font-black text-info">{{ scan.low_count }}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-wider">Low</div>
+        </div>
+    </div>
+
+    <!-- Interactive Filters & Search Panel -->
+    <div class="cartoon-card p-4 space-y-4">
+        <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+            
+            <!-- Severity Tabs -->
+            <div class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg border-2 border-slate-900 w-fit text-[10px] font-black uppercase shadow-[2px_2px_0px_#0f172a]">
+                <button onclick="setFilterSeverity('all')" id="sev-btn-all" class="btn btn-xs btn-primary font-black rounded px-2.5 py-1">
+                    ALL ({{ scan.total_issues }})
+                </button>
+                <button onclick="setFilterSeverity('critical')" id="sev-btn-critical" class="btn btn-xs btn-ghost hover:bg-error/15 text-error font-black rounded px-2.5 py-1">
+                    CRIT ({{ scan.critical_count }})
+                </button>
+                <button onclick="setFilterSeverity('high')" id="sev-btn-high" class="btn btn-xs btn-ghost hover:bg-orange-500/15 text-orange-500 font-black rounded px-2.5 py-1">
+                    HIGH ({{ scan.high_count }})
+                </button>
+                <button onclick="setFilterSeverity('medium')" id="sev-btn-medium" class="btn btn-xs btn-ghost hover:bg-yellow-500/15 text-yellow-600 font-black rounded px-2.5 py-1">
+                    MED ({{ scan.medium_count }})
+                </button>
+                <button onclick="setFilterSeverity('low')" id="sev-btn-low" class="btn btn-xs btn-ghost hover:bg-info/15 text-info font-black rounded px-2.5 py-1">
+                    LOW ({{ scan.low_count }})
+                </button>
+            </div>
+            
+            <!-- Scanner Select + Search Input -->
+            <div class="flex flex-col sm:flex-row gap-3 flex-grow lg:max-w-xl">
+                <!-- Scanner filter dropdown -->
+                <select id="scanner-select" onchange="setFilterScanner(this.value)" class="cartoon-input select select-sm focus:outline-none text-xs font-extrabold text-slate-700 bg-white">
+                    <option value="all">ALL ENGINE FINDINGS</option>
+                    <option value="bandit">BANDIT RULES</option>
+                    <option value="semgrep">SEMGREP RULES</option>
+                </select>
+                
+                <!-- Keyword search -->
+                <div class="relative flex-grow">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input id="search-input" type="text" oninput="setFilterSearch(this.value)" placeholder="Search threats by path or keyword..." class="cartoon-input input input-sm w-full pl-9 bg-white text-xs text-slate-800" />
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Findings Log -->
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                <i data-lucide="shield-alert" class="w-4.5 h-4.5 text-primary"></i>
+                Vulnerability Registry
+            </h3>
+            <span id="showing-count" class="text-[9px] text-slate-400 font-black font-mono">
+                SHOWING {{ scan.total_issues }} THREATS
+            </span>
+        </div>
+
+        {% if not issues %}
+            <div class="cartoon-card p-12 text-center">
+                <div class="max-w-sm mx-auto space-y-3">
+                    <span class="p-3 bg-success/15 text-success rounded-xl inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
+                        <i data-lucide="trophy" class="w-8 h-8"></i>
+                    </span>
+                    <h4 class="text-sm font-black text-slate-800 uppercase tracking-wide">Perfect Defense Cleared!</h4>
+                    <p class="text-xs text-slate-400 font-bold leading-relaxed">
+                        0 vulnerabilities found. Your codebase is officially immune to static threat vectors.
+                    </p>
+                </div>
+            </div>
+        {% else %}
+            <!-- Issues List -->
+            <div class="space-y-4" id="issues-list-container">
+                {% for issue in issues %}
+                <div class="collapse collapse-arrow bg-white border-4 border-slate-900 rounded-xl shadow-[4px_4px_0px_#0f172a] hover:shadow-[6px_6px_0px_#0f172a] transition-all duration-150 sev-glow-{{ issue.severity }} issue-card"
+                     data-severity="{{ issue.severity }}"
+                     data-scanner="{{ issue.scanner }}"
+                     data-search="{{ issue.filepath.lower() }} {{ issue.message.lower() }} {{ issue.rule_id.lower() }} {{ issue.fix_title.lower() }}">
+                    
+                    <!-- Accordion Title -->
+                    <input type="checkbox" class="peer" /> 
+                    <div class="collapse-title flex flex-col md:flex-row md:items-center justify-between gap-3 font-extrabold text-slate-800 pr-10 py-3.5 pl-4 select-none">
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <!-- Severity Badge -->
+                            <span class="cartoon-badge text-[9px] font-black uppercase text-white border-2 border-slate-900
+                                {% if issue.severity == 'critical' %} bg-error
+                                {% elif issue.severity == 'high' %} bg-orange-500
+                                {% elif issue.severity == 'medium' %} bg-yellow-500 text-black
+                                {% else %} bg-info
+                                {% endif %}">
+                                {{ issue.severity }}
+                            </span>
+                            
+                            <!-- Vulnerability Title / File Path -->
+                            <div class="text-left">
+                                <span class="font-extrabold text-xs tracking-tight text-slate-800 mr-1.5">{{ issue.fix_title }}</span>
+                                <span class="text-[10px] font-mono text-slate-400 font-bold break-all">{{ issue.filepath }}:{{ issue.line_number }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Scanner Flag -->
+                        <div class="flex items-center gap-2 self-start md:self-auto text-[9px] text-slate-400 font-mono font-bold">
+                            <span class="bg-slate-100 px-2 py-0.5 rounded border-2 border-slate-900 text-[8px] text-primary font-black uppercase">
+                                {{ issue.scanner }}
+                            </span>
+                            <span>{{ issue.rule_id }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Accordion Content -->
+                    <div class="collapse-content bg-slate-50/50 border-t-4 border-slate-900 p-4 space-y-4 text-xs leading-relaxed text-slate-600">
+                        <!-- Issue Message Description -->
+                        <div class="space-y-1">
+                            <h4 class="text-[9px] font-black text-slate-450 uppercase tracking-widest">Threat intel</h4>
+                            <p class="text-slate-800 text-xs bg-white p-3 rounded-lg border-2 border-slate-900 font-bold">{{ issue.message }}</p>
+                        </div>
+                        
+                        <!-- Vulnerable Code block -->
+                        <div class="space-y-1.5">
+                            <h4 class="text-[9px] font-black text-slate-450 uppercase tracking-widest">Target code view</h4>
+                            <div class="mockup-code bg-slate-900 text-sky-200 text-[10px] p-4 rounded-xl border-2 border-slate-900 overflow-x-auto leading-relaxed max-w-full">
+                                <pre data-prefix="line" class="text-slate-500 border-r border-slate-800 pr-2 mr-2">Loc: {{ issue.filepath }}:{{ issue.line_number }}</pre>
+                                <pre class="whitespace-pre overflow-x-auto"><code>{{ issue.code_snippet }}</code></pre>
+                            </div>
+                        </div>
+
+                        <!-- Fix suggestions catalog -->
+                        <div class="space-y-3 pt-2">
+                            <div>
+                                <h4 class="text-[9px] font-black text-slate-450 uppercase tracking-widest">Blueprint Remediation</h4>
+                                <p class="text-[11px] text-slate-500 font-bold mt-1">{{ issue.fix_description }}</p>
+                            </div>
+
+                            <!-- Side by Side Before/After Code comparison -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Before -->
+                                <div class="space-y-1">
+                                    <div class="text-[10px] font-black text-error flex items-center gap-1">
+                                        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Before (Vulnerable Code)
+                                    </div>
+                                    <pre class="bg-red-50 border-2 border-red-200 text-red-700 text-[10px] p-3 rounded-xl font-mono overflow-x-auto leading-relaxed font-bold"><code>{{ issue.fix_before }}</code></pre>
+                                </div>
+                                <!-- After -->
+                                <div class="space-y-1">
+                                    <div class="text-[10px] font-black text-success flex items-center gap-1">
+                                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> After (Secured Fix)
+                                    </div>
+                                    <pre class="bg-green-50 border-2 border-green-200 text-green-700 text-[10px] p-3 rounded-xl font-mono overflow-x-auto leading-relaxed font-bold"><code>{{ issue.fix_after }}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Reference Advisory Link -->
+                        {% if issue.doc_url %}
+                        <div class="flex justify-end pt-2">
+                            <a href="{{ issue.doc_url }}" target="_blank" class="cartoon-btn btn-xs bg-slate-900 text-white px-2.5 py-1 rounded-lg text-[9px] gap-1 flex items-center justify-center border-none">
+                                <i data-lucide="external-link" class="w-2.5 h-2.5"></i> Advisory docs
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+    
+</div>
+
+<script>
+    // State indicators for filter matching
+    let currentSeverityFilter = 'all';
+    let currentScannerFilter = 'all';
+    let currentSearchFilter = '';
+
+    // Apply client-side visibility filters based on current states
+    function applyFilters() {
+        const items = document.querySelectorAll(".issue-card");
+        let visibleCount = 0;
+        
+        items.forEach(item => {
+            const severity = item.getAttribute("data-severity");
+            const scanner = item.getAttribute("data-scanner");
+            const searchText = item.getAttribute("data-search");
+            
+            // Check matches
+            const matchSeverity = (currentSeverityFilter === 'all' || severity === currentSeverityFilter);
+            const matchScanner = (currentScannerFilter === 'all' || scanner === currentScannerFilter);
+            const matchSearch = (!currentSearchFilter || searchText.includes(currentSearchFilter.toLowerCase()));
+            
+            if (matchSeverity && matchScanner && matchSearch) {
+                item.classList.remove("hidden");
+                visibleCount++;
+            } else {
+                item.classList.add("hidden");
+            }
+        });
+        
+        // Update counts label
+        const counter = document.getElementById("showing-count");
+        if (counter) {
+            counter.textContent = `Showing ${visibleCount} of ${items.length} findings`;
+        }
+    }
+
+    function setFilterSeverity(sev) {
+        currentSeverityFilter = sev;
+        
+        // Toggle btn-primary state
+        const severityButtons = ['all', 'critical', 'high', 'medium', 'low'];
+        severityButtons.forEach(buttonId => {
+            const btn = document.getElementById(`sev-btn-${buttonId}`);
+            if (!btn) return;
+            if (buttonId === sev) {
+                btn.classList.add("btn-primary");
+                btn.classList.remove("btn-ghost");
+            } else {
+                btn.classList.remove("btn-primary");
+                btn.classList.add("btn-ghost");
+            }
+        });
+        
+        applyFilters();
+    }
+
+    function setFilterScanner(scannerVal) {
+        currentScannerFilter = scannerVal;
+        applyFilters();
+    }
+
+    function setFilterSearch(query) {
+        currentSearchFilter = query;
+        applyFilters();
+    }
+    
+    // Refresh icons inside dynamically swapped layout
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+</script>

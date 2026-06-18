@@ -1,0 +1,68 @@
+<div hx-get="/scans/{{ scan_id }}/status" hx-trigger="every 2s" hx-swap="outerHTML" class="card bg-white border border-slate-200 p-8 md:p-12 text-center shadow-sm relative overflow-hidden animate-slide-up w-full rounded-xl">
+    
+    <!-- Background grid/glow elements -->
+    <div class="absolute -top-12 -left-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-md mx-auto space-y-6">
+        <!-- Spinner & Pulse -->
+        <div class="relative flex items-center justify-center w-20 h-20 mx-auto">
+            <span class="absolute w-16 h-16 rounded-full border-4 border-primary/20 animate-ping"></span>
+            <span class="loading loading-ring loading-lg text-primary scale-150 relative z-10"></span>
+        </div>
+
+        <div class="space-y-1">
+            <h3 class="text-xl font-extrabold text-slate-800 tracking-tight">
+                ACTIVE SCANNING RUN
+            </h3>
+            <p id="loading-subtext" class="text-xs text-slate-400 italic h-6">
+                Executing Bandit check blocks...
+            </p>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="space-y-1">
+            <progress class="progress progress-primary w-full h-2 rounded-lg" value="45" max="100"></progress>
+            <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>QUEST STATUS: <span class="text-primary font-bold uppercase">{{ scan.status }}</span></span>
+                <span id="elapsed-timer">TIME ELAPSED: 0s</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Cycle scanning subtext messages
+    const subtexts = [
+        "Analyzing file imports and dependency trees...",
+        "Executing Bandit syntax tree checks...",
+        "Running Semgrep engine rule validations...",
+        "Validating SQL query statements against injection patterns...",
+        "Auditing encryption and hashing modules...",
+        "Scanning for hardcoded secrets and environment keys...",
+        "Aggregating security issues and preparing fix reports..."
+    ];
+    
+    let subtextIndex = 0;
+    const subtextEl = document.getElementById("loading-subtext");
+    if (subtextEl) {
+        // Set initial random or first
+        subtextEl.textContent = subtexts[0];
+        setInterval(() => {
+            subtextIndex = (subtextIndex + 1) % subtexts.length;
+            subtextEl.textContent = subtexts[subtextIndex];
+        }, 2500);
+    }
+    
+    // Simple timer count
+    const timerEl = document.getElementById("elapsed-timer");
+    if (timerEl) {
+        if (!window.scanStartTime) {
+            window.scanStartTime = Date.now();
+        }
+        setInterval(() => {
+            const diff = Math.floor((Date.now() - window.scanStartTime) / 1000);
+            timerEl.textContent = `TIME ELAPSED: ${diff}s`;
+        }, 1000);
+    }
+</script>
