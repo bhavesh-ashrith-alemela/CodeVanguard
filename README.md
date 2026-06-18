@@ -2,6 +2,8 @@
 
 > **Scan. Detect. Secure. In Seconds.**
 
+**Live Demo**: [https://codevanguard.onrender.com/](https://codevanguard.onrender.com/)
+
 CodeVanguard is a modern, high-performance Static Application Security Testing (SAST) mini-tool designed to help developers inspect Python codebases for bugs, vulnerabilities, and code-quality issues. It integrates industry-standard analysis engines (**Bandit** and **Semgrep**) executing in parallel to provide immediate security insights, clear severities, side-by-side fix recommendations, and exports in multiple compliant formats (HTML, PDF, JSON, CSV).
 
 ---
@@ -11,13 +13,13 @@ CodeVanguard is a modern, high-performance Static Application Security Testing (
 - **Upload & Scan Options**: Drag-and-drop a single `.py` file or a compressed `.zip` codebase (up to 10MB). Pasting raw Python code directly is also supported.
 - **Secure File Handlers**: Includes path validation (Zip Slip mitigation) to prevent arbitrary path traversal during archive extraction.
 - **Parallel Analysis Engine**: Bandit (syntax-tree security checks) and Semgrep (rule-based scanner) execute concurrently for fast completion.
-- **Interactive Dark-themed Dashboard**: Responsive UI styled with Tailwind CSS + DaisyUI.
+- **Interactive Cartoon-themed Dashboard**: Responsive UI styled with flat orange/white cartoonish borders and shadows.
   - Live progress tracking using HTMX status polling.
   - Instant client-side filters for scanner type, severities, and filename search.
 - **Actionable Fix Recommendations**: Common vulnerabilities map directly to side-by-side "Before/After" secure code patches.
 - **Compliance Reports**: Download assessment results in standalone HTML, print-ready PDF (using an auto-fallback engine), spreadsheet-ready CSV, or machine JSON.
 - **Persistent Scan History**: Re-verify previous reports and purge outdated scans via an SQLite database.
-- **Vulnerable Gallery**: Provides pre-configured code templates (SQL Injection, Command Injection, Secrets Leak, Deserialization) to demo the scanner instantly.
+- **Vulnerability Playground (Examples)**: Provides pre-configured code templates (SQL Injection, Command Injection, Secrets Leak, Deserialization) to demo the scanner instantly.
 
 ---
 
@@ -117,7 +119,7 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
-## Docker Deployment (One-Command)
+## Docker Deployment (Local Setup)
 
 The Dockerfile is preconfigured with all Cairo/Pango system libraries to enable full WeasyPrint PDF compilation out-of-the-box.
 
@@ -128,15 +130,37 @@ docker build -t codevanguard .
 
 ### 2. Run the Container
 ```bash
-docker run -d -p 8000:8000 --name codevanguard-app codevanguard
+docker run -d -p 8000:8000 -e DEFAULT_ADMIN_USER=admin -e DEFAULT_ADMIN_PASS=VanguardAdmin2026! --name codevanguard-app codevanguard
 ```
 Open [http://localhost:8000](http://localhost:8000) to view the live app.
 
 ---
 
+## Cloud Deployment (Render)
+
+This application can be deployed directly to **Render** using the integrated `Dockerfile`.
+
+### 1. Create a Web Service
+- Link your GitHub repository to your Render account.
+- Select **Docker** as the Runtime.
+
+### 2. Configure Environment Variables
+Set the following environment variables in the Render dashboard:
+- `PORT` = `8000`
+- `DEFAULT_ADMIN_USER` = `<your-custom-admin-username>`
+- `DEFAULT_ADMIN_PASS` = `<your-custom-admin-password>`
+- `DATA_DIR` = `/data` *(only if using persistent disk)*
+
+### 3. Add Persistent Volume (Optional / Starter Instance)
+To persist scan history and audit logs across container spin-downs, mount a persistent volume disk under **Disks** in the Render settings:
+- **Mount Path**: `/data`
+- **Size**: `1 GiB`
+
+---
+
 ## Demo Testing
 
-1. Go to the **Gallery** page.
+1. Go to the **Examples** page.
 2. Select any vulnerability example (e.g. **SQL Injection**).
-3. Click **Analyze Snippet**.
-4. The scanner will poll, execute, and load the dashboard demonstrating the issue and showing the parameterized SQL query fix.
+3. Click the **Scan** action button on the card.
+4. The scanner will poll, execute, and load the dashboard demonstrating the issue and showing the secure code fix.
