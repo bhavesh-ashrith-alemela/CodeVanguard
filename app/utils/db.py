@@ -8,6 +8,9 @@ from datetime import datetime
 DB_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 DB_PATH = os.path.join(DB_DIR, "codevanguard.db")
 
+# Ensure database directory exists (useful for container volumes on Render)
+os.makedirs(DB_DIR, exist_ok=True)
+
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
