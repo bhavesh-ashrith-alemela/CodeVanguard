@@ -94,15 +94,17 @@ def init_db():
         # Auto-create default admin account
         cursor.execute("SELECT COUNT(*) as count FROM users")
         if cursor.fetchone()["count"] == 0:
-            default_admin_user = "admin"
-            default_admin_pass = "VanguardAdmin2026!"
+            default_admin_user = os.environ.get("DEFAULT_ADMIN_USER", "admin")
+            default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASS", "VanguardAdmin2026!")
             hashed = hash_password(default_admin_pass)
             cursor.execute("""
                 INSERT INTO users (username, hashed_password, role, created_at)
                 VALUES (?, ?, 'admin', ?)
             """, (default_admin_user, hashed, datetime.now().isoformat()))
             conn.commit()
-            print(f"CodeVanguard: Created default admin account (username: '{default_admin_user}', password: '{default_admin_pass}')")
+            is_default = default_admin_pass == "VanguardAdmin2026!"
+            mask_pass = default_admin_pass if is_default else "********"
+            print(f"CodeVanguard: Created default admin account (username: '{default_admin_user}', password: '{mask_pass}')")
 
 def create_scan(scan_id: str, filename: str, file_size: int) -> dict:
     """Inserts a new scan with status 'pending'."""
