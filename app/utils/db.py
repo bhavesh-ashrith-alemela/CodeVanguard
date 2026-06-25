@@ -98,7 +98,14 @@ def init_db():
         cursor.execute("SELECT COUNT(*) as count FROM users")
         if cursor.fetchone()["count"] == 0:
             default_admin_user = os.environ.get("DEFAULT_ADMIN_USER", "admin")
-            default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASS", "VanguardAdmin2026!")
+            default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASS")
+            
+            is_prod = os.environ.get("ENV", "development").lower() == "production"
+            if not default_admin_pass:
+                if is_prod:
+                    raise RuntimeError("SECURITY ERROR: DEFAULT_ADMIN_PASS environment variable MUST be defined in production mode!")
+                default_admin_pass = "VanguardAdmin2026!"
+                
             hashed = hash_password(default_admin_pass)
             cursor.execute("""
                 INSERT INTO users (username, hashed_password, role, created_at)

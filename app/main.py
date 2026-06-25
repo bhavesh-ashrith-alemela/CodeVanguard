@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -25,9 +26,17 @@ app = FastAPI(
 )
 
 # Configure CORS middleware
+cors_origins = ["*"]
+if os.environ.get("ENV", "development").lower() == "production":
+    allowed_origin_env = os.environ.get("ALLOWED_ORIGINS")
+    if allowed_origin_env:
+        cors_origins = [origin.strip() for origin in allowed_origin_env.split(",")]
+    else:
+        print("SECURITY WARNING: Running in production mode but ALLOWED_ORIGINS is not set! Defaulting to '*' wildcard origins.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Set to specific domains if production safety is required, or keep * for a public demo API
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

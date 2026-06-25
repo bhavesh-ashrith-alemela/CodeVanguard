@@ -8,7 +8,7 @@ from app.utils.db import (
     authenticate_user, create_session, get_user_by_session, delete_session,
     get_audit_logs, create_audit_log, get_db_stats, wipe_all_data, get_scan_history
 )
-from app.utils.rate_limiter import login_limiter
+from app.utils.rate_limiter import login_limiter, get_client_ip
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
@@ -53,7 +53,7 @@ async def admin_login(
     password: str = Form(...)
 ):
     """Validates login credentials, handles rate limits, sets HttpOnly cookies, and creates sessions."""
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     
     # Rate Limiting Check
     if not login_limiter.is_allowed(ip):
@@ -80,12 +80,14 @@ async def admin_login(
     create_audit_log(user["id"], "login_success", "Admin logged in successfully", ip)
     
     redirect = RedirectResponse(url="/admin/dashboard", status_code=303)
-    # Set secure HttpOnly session cookie
+    # Set secure HttpOnly session cookie (enforce secure=True in production mode)
+    secure = os.environ.get("ENV", "development").lower() == "production"
     redirect.set_cookie(
         key="session_token",
         value=token,
         httponly=True,
         samesite="lax",
+        secure=secure,
         max_age=3600
     )
     return redirect
@@ -172,7 +174,7 @@ async def get_current_admin_api(request: Request):
 @router.post("/api/login")
 async def admin_login_json(request: Request, login_data: LoginRequest):
     """Validates login credentials, handles rate limits, and returns a session token."""
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     
     # Rate Limiting Check
     if not login_limiter.is_allowed(ip):

@@ -9,7 +9,7 @@ from app.utils.db import (
     create_scan, get_scan, get_scan_issues, get_scan_history, delete_scan,
     get_user_by_session, create_audit_log
 )
-from app.utils.rate_limiter import scan_limiter
+from app.utils.rate_limiter import scan_limiter, get_client_ip
 from app.utils.file_handler import save_uploaded_file, save_pasted_code, delete_scan_dir
 from app.utils.fix_suggestions import get_fix_suggestion
 from app.utils.report_generator import (
@@ -45,7 +45,7 @@ async def trigger_scan(
     file: Optional[UploadFile] = File(None),
     code: Optional[str] = Form(None)
 ):
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     if not scan_limiter.is_allowed(ip):
         raise HTTPException(status_code=429, detail="Too many scans submitted. Please wait a minute.")
         
@@ -224,7 +224,7 @@ async def remove_scan(request: Request, scan_id: str):
     if origin and host not in origin:
         raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
         
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     delete_scan(scan_id)
     delete_scan_dir(scan_id)
     create_audit_log(user["id"], "scan_delete", f"Deleted scan: {scan_id}", ip)
@@ -245,7 +245,7 @@ async def trigger_scan_json(
     code: Optional[str] = Form(None)
 ):
     """Processes code/file uploads and returns a JSON response containing the scan_id."""
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     if not scan_limiter.is_allowed(ip):
         raise HTTPException(status_code=429, detail="Too many scans submitted. Please wait a minute.")
         

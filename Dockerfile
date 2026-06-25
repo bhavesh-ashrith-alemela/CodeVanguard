@@ -15,8 +15,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create a non-root system user and adjust directory permissions
+RUN useradd -u 10001 -U -d /app -s /bin/bash vanguard && \
+    chown -R vanguard:vanguard /app
+
 # Copy project files
-COPY . /app/
+COPY --chown=vanguard:vanguard . /app/
+
+# Switch to non-root user
+USER vanguard
 
 # Expose port
 EXPOSE 8000

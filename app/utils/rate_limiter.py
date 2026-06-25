@@ -1,5 +1,14 @@
 import time
 from collections import defaultdict
+from fastapi import Request
+
+def get_client_ip(request: Request) -> str:
+    """Resolves client IP address, checking X-Forwarded-For headers for proxies."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # First IP in the comma-separated list is the client IP
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 class InMemoryRateLimiter:
     """Lightweight in-memory client-IP rate limiter."""
