@@ -16,13 +16,18 @@ class BanditScanner:
         # Fallback to just "bandit" if virtualenv is activated or in PATH
         venv_bin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "Scripts", "bandit.exe")
         if not os.path.exists(venv_bin):
-            venv_bin = "bandit"
+            # Check Linux path structure
+            venv_bin_linux = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "bin", "bandit")
+            if os.path.exists(venv_bin_linux):
+                venv_bin = venv_bin_linux
+            else:
+                venv_bin = "bandit"
 
         # Construct bandit command
         # -f json: format as JSON
         # -r: recursive scan
         # target_dir: directory to scan
-        cmd = [venv_bin, "-f", "json", "-r", self.target_dir]
+        cmd = [venv_bin, "-f", "json", "-r", "-x", "node_modules,.git,.venv,.next,venv,env,temp", self.target_dir]
         
         try:
             process = await asyncio.create_subprocess_exec(

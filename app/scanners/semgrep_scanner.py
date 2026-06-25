@@ -13,15 +13,26 @@ class SemgrepScanner:
         """
         venv_bin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "Scripts", "semgrep.exe")
         if not os.path.exists(venv_bin):
-            venv_bin = "semgrep"
+            # Check Linux path structure
+            venv_bin_linux = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv", "bin", "semgrep")
+            if os.path.exists(venv_bin_linux):
+                venv_bin = venv_bin_linux
+            else:
+                venv_bin = "semgrep"
 
-        # Construct semgrep command
-        # semgrep scan --config=auto --json <target_dir>
-        # We can also add --quiet to suppress extra output
-        cmd = [venv_bin, "scan", "--config=auto", "--json", "--quiet", self.target_dir]
+        # Construct semgrep command with local offline rules and speed optimization
+        rules_path = os.path.join(os.path.dirname(__file__), "rules.yaml")
+        cmd = [
+            venv_bin, "scan",
+            f"--config={rules_path}",
+            "--json",
+            "--quiet",
+            "--metrics=off",
+            "--no-git-ignore",
+            self.target_dir
+        ]
         
         try:
-            # Weasyprint/semgrep can take some time, let's execute it
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,

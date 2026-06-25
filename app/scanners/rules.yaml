@@ -1,0 +1,80 @@
+rules:
+  - id: python.sqlite.security.audit.sqlite-execute-format
+    patterns:
+      - pattern-either:
+          - pattern: $CONN.execute(...)
+          - pattern: $CURSOR.execute(...)
+      - pattern-regex: "(%|\\+|\\.format|f['\"])"
+    message: "SQL query constructed with string formatting or interpolation detected. Constructing SQL queries using string formatting permits SQL injection."
+    languages: [python]
+    severity: ERROR
+
+  - id: python.lang.security.deserialization.pickle.avoid-pickle
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads(...)
+          - pattern: pickle.load(...)
+    message: "Deserializing untrusted data with pickle can lead to Remote Code Execution. Use JSON or safer serialization formats."
+    languages: [python]
+    severity: ERROR
+
+  - id: python.lang.security.audit.md5.avoid-md5
+    patterns:
+      - pattern: hashlib.md5(...)
+    message: "MD5 has known cryptographic weaknesses and is susceptible to collision attacks."
+    languages: [python]
+    severity: WARNING
+
+  - id: python.lang.security.audit.sha1.avoid-sha1
+    patterns:
+      - pattern: hashlib.sha1(...)
+    message: "SHA-1 has known cryptographic weaknesses and is susceptible to collision attacks."
+    languages: [python]
+    severity: WARNING
+
+  - id: python.lang.security.audit.subprocess.subprocess-shell-true
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True)
+          - pattern: subprocess.Popen(..., shell=True)
+          - pattern: subprocess.call(..., shell=True)
+          - pattern: subprocess.check_output(..., shell=True)
+    message: "Spawning subprocesses with shell=True is dangerous and can lead to command injection."
+    languages: [python]
+    severity: ERROR
+
+  - id: python.lang.security.audit.random.weak-random.weak-random
+    patterns:
+      - pattern-either:
+          - pattern: random.randint(...)
+          - pattern: random.choice(...)
+          - pattern: random.random(...)
+          - pattern: random.randrange(...)
+    message: "Standard random module is not cryptographically secure. Use secrets module instead."
+    languages: [python]
+    severity: WARNING
+
+  - id: python.lang.security.audit.network.bind-all-interfaces.bind-all-interfaces
+    patterns:
+      - pattern-either:
+          - pattern: $APP.run(..., host='0.0.0.0', ...)
+          - pattern: $SOCKET.bind(('0.0.0.0', ...))
+    message: "Binding to 0.0.0.0 exposes the application to all interfaces, increasing the attack surface."
+    languages: [python]
+    severity: WARNING
+
+  - id: python.lang.security.audit.assert.use-of-assert
+    pattern: assert ...
+    message: "Assert statements can be optimized away in production. Use conditional raises instead."
+    languages: [python]
+    severity: WARNING
+
+  - id: python.lang.security.audit.hardcoded-password
+    patterns:
+      - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: "(?i)(password|passwd|pwd|secret|api_key|token|private_key)"
+    message: "Hardcoded secret or password string detected. Load credentials from environment variables."
+    languages: [python]
+    severity: ERROR
