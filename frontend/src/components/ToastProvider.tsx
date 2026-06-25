@@ -36,30 +36,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Toast container in bottom-right corner */}
       <div className="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2 max-w-sm w-full px-4">
         {toasts.map((toast) => {
-          let alertClass = 'alert-info';
+          let bgBorderClass = '';
+          let iconColorClass = '';
           let Icon = Info;
           
           if (toast.type === 'success') {
-            alertClass = 'alert-success bg-green-50 text-green-800 border-green-400';
+            bgBorderClass = 'bg-[#ecfdf5] text-slate-800';
+            iconColorClass = 'text-emerald-600';
             Icon = CheckCircle;
           } else if (toast.type === 'error') {
-            alertClass = 'alert-error bg-red-50 text-red-800 border-red-400';
+            bgBorderClass = 'bg-[#fef2f2] text-slate-800';
+            iconColorClass = 'text-red-600';
             Icon = AlertTriangle;
           } else {
-            alertClass = 'alert-info bg-sky-50 text-sky-800 border-sky-400';
+            bgBorderClass = 'bg-[#f0f9ff] text-slate-800';
+            iconColorClass = 'text-sky-600';
             Icon = Info;
           }
 
           return (
             <div
               key={toast.id}
-              className={`alert shadow-lg pointer-events-auto border-2 border-slate-900 rounded-xl p-4 flex items-center gap-3 animate-slide-up bg-white`}
+              className={`pointer-events-auto border-2 border-slate-900 rounded-xl p-3.5 flex items-center gap-3 animate-slide-up ${bgBorderClass}`}
               style={{
                 boxShadow: '3px 3px 0px #0f172a',
                 transition: 'opacity 0.5s ease',
               }}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
+              <Icon className={`w-5 h-5 flex-shrink-0 ${iconColorClass}`} />
               <span className="text-xs font-bold font-sans">{toast.message}</span>
             </div>
           );

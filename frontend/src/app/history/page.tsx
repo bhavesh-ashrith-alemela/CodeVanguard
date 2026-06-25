@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { History, Archive, Trash2, Shield } from 'lucide-react';
+import { History, Archive, Trash2, Shield, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { fetchApi, ScanMetadata } from '@/lib/api';
 
@@ -77,8 +77,8 @@ export default function HistoryPage() {
         <div className="overflow-x-auto bg-white p-4">
           {loading ? (
             <div className="text-center py-12">
-              <span className="loading loading-ring loading-md text-primary"></span>
-              <p className="text-[10px] text-slate-400 font-bold mt-1">Retrieving database log rows...</p>
+              <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+              <p className="text-[10px] text-slate-400 font-bold mt-2">Retrieving database log rows...</p>
             </div>
           ) : history.length === 0 ? (
             <div className="text-center py-12">
@@ -106,16 +106,6 @@ export default function HistoryPage() {
                   const date = scan.timestamp.substring(0, 19).replace('T', ' ');
                   const sizeKB = (scan.file_size / 1024).toFixed(1);
                   
-                  // Status badge
-                  let statusBadge = "";
-                  if (scan.status === "completed") {
-                    statusBadge = `<span class="cartoon-badge bg-green-50 text-green-700 border-green-400 text-[8px] font-black">completed</span>`;
-                  } else if (scan.status === "failed") {
-                    statusBadge = `<span class="cartoon-badge bg-red-50 text-red-700 border-red-400 text-[8px] font-black">failed</span>`;
-                  } else {
-                    statusBadge = `<span class="cartoon-badge bg-primary/10 text-primary border-primary text-[8px] font-black animate-pulse">${scan.status}</span>`;
-                  }
-                  
                   return (
                     <tr key={scan.id} className="hover:bg-slate-50/50 border-b border-slate-100">
                       <td className="font-bold py-3.5 px-4">
@@ -124,7 +114,21 @@ export default function HistoryPage() {
                       </td>
                       <td className="font-mono text-[10px] text-slate-550 py-3.5 px-4">{date}</td>
                       <td className="py-3.5 px-4">
-                        <div dangerouslySetInnerHTML={{ __html: statusBadge }} />
+                        {scan.status === "completed" && (
+                          <span className="cartoon-badge bg-green-50 text-green-700 border-green-400 text-[8px] font-black">
+                            completed
+                          </span>
+                        )}
+                        {scan.status === "failed" && (
+                          <span className="cartoon-badge bg-red-50 text-red-700 border-red-400 text-[8px] font-black">
+                            failed
+                          </span>
+                        )}
+                        {scan.status !== "completed" && scan.status !== "failed" && (
+                          <span className="cartoon-badge bg-primary/10 text-primary border-primary text-[8px] font-black animate-pulse">
+                            {scan.status}
+                          </span>
+                        )}
                       </td>
                       <td className="text-center py-3.5 px-4">
                         {scan.status === 'completed' ? (
@@ -143,13 +147,13 @@ export default function HistoryPage() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link href={`/results?id=${scan.id}`} className="cartoon-btn btn-xs px-2.5 py-1 rounded-md text-[9px]">
+                          <Link href={`/results?id=${scan.id}`} className="cartoon-btn cartoon-btn-sm px-2.5 py-1 text-[9px]">
                             Terminal
                           </Link>
                           {isAdmin && (
                             <button 
                               onClick={() => handleDelete(scan.id)}
-                              className="cartoon-btn btn-xs bg-red-100 hover:bg-red-500 hover:text-white text-red-500 border-red-500 px-2.5 py-1 rounded-md text-[9px] cursor-pointer"
+                              className="cartoon-btn cartoon-btn-sm bg-red-100 hover:bg-red-500 hover:text-white text-red-500 border-red-500 px-2.5 py-1 cursor-pointer"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>

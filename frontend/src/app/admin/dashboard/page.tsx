@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 flex-grow w-full">
-        <span className="loading loading-ring loading-lg text-primary"></span>
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
         <p className="text-xs text-slate-500 font-bold mt-2">Connecting to Admin Control Room...</p>
       </div>
     );
@@ -92,7 +92,7 @@ export default function AdminDashboardPage() {
         <button 
           onClick={handleWipe}
           disabled={wipeLoading}
-          className="cartoon-btn btn-sm bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-xs gap-1.5 flex items-center shadow-[3px_3px_0px_#000] cursor-pointer"
+          className="cartoon-btn cartoon-btn-sm bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-xs gap-1.5 flex items-center cursor-pointer"
         >
           {wipeLoading ? (
             <>

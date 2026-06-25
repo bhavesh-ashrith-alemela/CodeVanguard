@@ -93,6 +93,33 @@ body {
   justify-content: center;
 }
 
+/* Thinner borders for smaller buttons (xs/sm buttons) */
+.cartoon-btn-sm {
+  border-width: 2px !important;
+  border-radius: 8px !important;
+  box-shadow: 2px 2px 0px #0f172a !important;
+}
+
+.cartoon-btn-sm:hover:not(:disabled) {
+  transform: translate(1px, 1px) !important;
+  box-shadow: 1px 1px 0px #0f172a !important;
+}
+
+/* Thinner borders for smaller utility cards */
+.cartoon-card-sm {
+  background: #ffffff;
+  border: 2px solid #0f172a !important;
+  border-radius: 12px !important;
+  box-shadow: 3px 3px 0px #0f172a !important;
+  transition: all 0.12s ease;
+  overflow: hidden;
+}
+
+.cartoon-card-sm:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #0f172a !important;
+}
+
 /* Active & Inactive state overrides */
 .cartoon-btn.active {
   background-color: hsl(var(--p)) !important;

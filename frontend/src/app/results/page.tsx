@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   Shield, AlertTriangle, FileText, CheckCircle, XCircle, Search, 
-  ExternalLink, Trophy, HelpCircle, AlertCircle, Info 
+  ExternalLink, Trophy, HelpCircle, AlertCircle, Info, Loader2 
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { fetchApi, API_BASE, ScanMetadata, Issue } from '@/lib/api';
@@ -98,13 +98,13 @@ function ResultsClient() {
 
   if (!scanId) {
     return (
-      <div className="card bg-white border-4 border-slate-900 p-8 rounded-xl shadow-[4px_4px_0px_#0f172a] text-center max-w-md mx-auto space-y-4">
-        <span className="p-3 bg-red-100 text-error rounded-full inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
+      <div className="cartoon-card bg-white p-8 text-center max-w-md mx-auto space-y-4">
+        <span className="p-3 bg-red-50 text-error rounded-full inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
           <AlertCircle className="w-8 h-8" />
         </span>
         <h3 className="text-lg font-black text-slate-800 uppercase">Invalid Request</h3>
         <p className="text-xs text-slate-500 font-bold">No scan identification code was supplied. Please return home and scan a codebase.</p>
-        <button onClick={() => router.push('/')} className="cartoon-btn btn-sm px-4 py-2 rounded-lg text-xs mx-auto">
+        <button onClick={() => router.push('/')} className="cartoon-btn cartoon-btn-sm px-4 py-2 text-xs mx-auto">
           Go Home
         </button>
       </div>
@@ -113,14 +113,14 @@ function ResultsClient() {
 
   if (loading && (!scan || (scan.status !== 'completed' && scan.status !== 'failed'))) {
     return (
-      <div className="card bg-white border-4 border-slate-900 p-8 md:p-12 text-center shadow-[4px_4px_0px_#0f172a] relative overflow-hidden animate-slide-up w-full max-w-xl mx-auto rounded-xl">
+      <div className="cartoon-card bg-white p-8 md:p-12 text-center relative overflow-hidden animate-slide-up w-full max-w-xl mx-auto">
         <div className="absolute -top-12 -left-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
       
         <div className="max-w-md mx-auto space-y-6">
           <div className="relative flex items-center justify-center w-20 h-20 mx-auto">
             <span className="absolute w-16 h-16 rounded-full border-4 border-primary/20 animate-ping"></span>
-            <span className="loading loading-ring loading-lg text-primary scale-150 relative z-10"></span>
+            <Loader2 className="w-10 h-10 text-primary animate-spin scale-150 relative z-10" />
           </div>
       
           <div className="space-y-1">
@@ -128,8 +128,10 @@ function ResultsClient() {
             <p className="text-xs text-slate-400 italic h-6">Analyzing file imports and dependency trees...</p>
           </div>
       
-          <div className="space-y-1">
-            <progress className="progress progress-primary w-full h-2 rounded-lg" value="45" max="100"></progress>
+          <div className="space-y-2">
+            <div className="h-4 bg-white border-2 border-slate-900 rounded-lg overflow-hidden relative">
+              <div className="h-full bg-primary border-r-2 border-slate-900 animate-pulse" style={{ width: '45%' }}></div>
+            </div>
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
               <span>QUEST STATUS: <span className="text-primary font-bold uppercase">{scan?.status || 'PENDING'}</span></span>
               <span>TIME ELAPSED: {elapsedTime}s</span>
@@ -142,9 +144,9 @@ function ResultsClient() {
 
   if (errorMsg) {
     return (
-      <div className="card bg-white border-4 border-slate-900 p-8 rounded-xl shadow-[4px_4px_0px_#0f172a] text-center space-y-6 max-w-xl mx-auto animate-slide-up w-full">
+      <div className="cartoon-card bg-white p-8 text-center space-y-6 max-w-xl mx-auto animate-slide-up w-full">
         <div className="space-y-4">
-          <span className="p-3.5 bg-red-100 text-error inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
+          <span className="p-3.5 bg-red-55 text-error inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
             <AlertTriangle className="w-10 h-10" />
           </span>
           <h3 className="text-lg font-extrabold text-slate-800 uppercase tracking-tight">Scan Quest Interrupted</h3>
@@ -153,13 +155,13 @@ function ResultsClient() {
           </p>
         </div>
         
-        <div className="bg-slate-50 p-4 rounded-lg text-left border border-slate-200 font-mono text-[10px] overflow-x-auto text-error leading-relaxed">
+        <div className="bg-slate-50 p-4 rounded-lg text-left border border-slate-900 font-mono text-[10px] overflow-x-auto text-error leading-relaxed">
           <strong>Traceback details:</strong>
           <pre className="mt-2 whitespace-pre-wrap">{errorMsg}</pre>
         </div>
         
         <div className="pt-2">
-          <button onClick={() => router.push('/')} className="cartoon-btn btn-sm px-4 py-2 rounded-lg text-xs mx-auto">
+          <button onClick={() => router.push('/')} className="cartoon-btn cartoon-btn-sm px-4 py-2 text-xs mx-auto">
             Return Home
           </button>
         </div>
@@ -240,16 +242,16 @@ function ResultsClient() {
         <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Compliance Logs:</span>
-            <a href={`${API_BASE}/scans/${scanId}/export/pdf`} download className="cartoon-btn btn-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 flex items-center gap-1 rounded-lg text-[10px] font-black">
+            <a href={`${API_BASE}/scans/${scanId}/export/pdf`} download className="cartoon-btn cartoon-btn-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 flex items-center gap-1 text-[10px] font-black">
               <FileText className="w-3.5 h-3.5" /> PDF
             </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/html`} download className="cartoon-btn btn-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 flex items-center gap-1 rounded-lg text-[10px] font-black">
+            <a href={`${API_BASE}/scans/${scanId}/export/html`} download className="cartoon-btn cartoon-btn-sm bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 flex items-center gap-1 text-[10px] font-black">
               <FileText className="w-3.5 h-3.5" /> HTML
             </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/json`} download className="cartoon-btn btn-xs bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 rounded-lg text-[10px] font-black">
+            <a href={`${API_BASE}/scans/${scanId}/export/json`} download className="cartoon-btn cartoon-btn-sm bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 text-[10px] font-black">
               <FileText className="w-3.5 h-3.5" /> JSON
             </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/csv`} download className="cartoon-btn btn-xs bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 rounded-lg text-[10px] font-black">
+            <a href={`${API_BASE}/scans/${scanId}/export/csv`} download className="cartoon-btn cartoon-btn-sm bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 text-[10px] font-black">
               <FileText className="w-3.5 h-3.5" /> CSV
             </a>
           </div>
@@ -344,18 +346,19 @@ function ResultsClient() {
               if (sev === 'high') count = scan.high_count;
               if (sev === 'medium') count = scan.medium_count;
               if (sev === 'low') count = scan.low_count;
-
-              let buttonClass = 'btn btn-xs font-black rounded px-2.5 py-1 ';
+ 
+              let buttonClass = 'text-[9px] font-black rounded px-2.5 py-1.5 transition-all cursor-pointer ';
               if (isActive) {
-                buttonClass += 'btn-primary bg-primary text-white border-primary';
+                buttonClass += 'bg-slate-900 text-white';
               } else {
-                buttonClass += 'btn-ghost border-transparent bg-transparent text-slate-600 hover:bg-slate-200';
-                if (sev === 'critical') buttonClass += ' hover:bg-red-50 text-red-500';
-                if (sev === 'high') buttonClass += ' hover:bg-orange-50 text-orange-500';
-                if (sev === 'medium') buttonClass += ' hover:bg-yellow-50 text-yellow-600';
-                if (sev === 'low') buttonClass += ' hover:bg-sky-50 text-sky-500';
+                buttonClass += 'bg-transparent text-slate-600';
+                if (sev === 'critical') buttonClass += ' hover:bg-red-50 hover:text-red-500 text-red-500';
+                if (sev === 'high') buttonClass += ' hover:bg-orange-50 hover:text-orange-500 text-orange-500';
+                if (sev === 'medium') buttonClass += ' hover:bg-yellow-50 hover:text-yellow-600 text-yellow-600';
+                if (sev === 'low') buttonClass += ' hover:bg-sky-50 hover:text-sky-600 text-sky-500';
+                if (sev === 'all') buttonClass += ' hover:bg-slate-200';
               }
-
+ 
               return (
                 <button
                   key={sev}
@@ -373,7 +376,7 @@ function ResultsClient() {
             <select 
               value={scannerFilter}
               onChange={(e) => setScannerFilter(e.target.value)}
-              className="cartoon-input select select-sm focus:outline-none text-xs font-extrabold text-slate-700 bg-white p-2 border-4"
+              className="cartoon-input focus:outline-none text-xs font-extrabold text-slate-700 bg-white px-3 py-1.5 border-4 cursor-pointer"
             >
               <option value="all">ALL ENGINE FINDINGS</option>
               <option value="bandit">BANDIT RULES</option>
@@ -389,7 +392,7 @@ function ResultsClient() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search threats by path or keyword..."
-                className="cartoon-input input input-sm w-full pl-9 bg-white text-xs text-slate-800 p-2 border-4"
+                className="cartoon-input w-full pl-9 bg-white text-xs text-slate-800 px-3 py-1.5 border-4 focus:outline-none"
               />
             </div>
           </div>
@@ -432,7 +435,7 @@ function ResultsClient() {
               return (
                 <div 
                   key={issue.id}
-                  className={`bg-white border-4 border-slate-900 rounded-xl shadow-[4px_4px_0px_#0f172a] hover:shadow-[6px_6px_0px_#0f172a] transition-all duration-150 sev-glow-${issue.severity} overflow-hidden`}
+                  className={`cartoon-card hover:shadow-[8px_8px_0px_#0f172a] transition-all duration-150 sev-glow-${issue.severity} bg-white`}
                 >
                   <details className="group">
                     <summary className="flex flex-col md:flex-row md:items-center justify-between gap-3 font-extrabold text-slate-800 pr-10 py-3.5 pl-4 select-none cursor-pointer list-none relative">
@@ -503,7 +506,7 @@ function ResultsClient() {
                             href={issue.doc_url} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="cartoon-btn btn-xs bg-slate-900 text-white px-2.5 py-1 rounded-lg text-[9px] gap-1 flex items-center justify-center border-none"
+                            className="cartoon-btn cartoon-btn-sm bg-slate-900 text-white px-2.5 py-1 text-[9px] gap-1 flex items-center justify-center"
                           >
                             <ExternalLink className="w-2.5 h-2.5" /> Advisory docs
                           </a>
@@ -526,8 +529,8 @@ export default function ResultsPage() {
   return (
     <Suspense fallback={
       <div className="flex flex-col items-center justify-center py-24 w-full">
-        <span className="loading loading-ring loading-lg text-primary"></span>
-        <p className="text-xs text-slate-500 font-bold mt-2">Loading terminal records...</p>
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-xs text-slate-500 font-bold mt-2 font-mono">Loading terminal records...</p>
       </div>
     }>
       <ResultsClient />
