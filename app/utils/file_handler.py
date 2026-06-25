@@ -76,16 +76,20 @@ def save_uploaded_file(file: UploadFile, scan_id: str) -> tuple[str, bool]:
     else:
         return temp_file_path, False
 
-def save_pasted_code(code: str, scan_id: str) -> str:
+def save_pasted_code(code: str, scan_id: str, extension: str = "py") -> str:
     """
-    Saves pasted text into a file named 'pasted_code.py' under the scan directory.
-    Returns the path to the saved python file.
+    Saves pasted text into a file named 'pasted_code.<extension>' under the scan directory.
+    Returns the path to the saved source file.
     """
     ensure_temp_dir()
     scan_dir = get_scan_dir(scan_id)
     os.makedirs(scan_dir, exist_ok=True)
     
-    file_path = os.path.join(scan_dir, "pasted_code.py")
+    # Sanitize extension
+    if extension not in ("py", "js", "jsx", "ts", "tsx", "go"):
+        extension = "py"
+        
+    file_path = os.path.join(scan_dir, f"pasted_code.{extension}")
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(code)
         

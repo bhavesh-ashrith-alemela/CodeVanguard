@@ -15,6 +15,14 @@ export default function Home() {
   const [code, setCode] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
+  const [language, setLanguage] = useState<'py' | 'js' | 'ts' | 'go'>('py');
+
+  const placeholders = {
+    py: `# Paste your Python code here...\nimport sqlite3\n\ndef get_user(username):\n    conn = sqlite3.connect('database.db')\n    cursor = conn.cursor()\n    cursor.execute(f"SELECT * FROM users WHERE username = '{username}'")\n    return cursor.fetchone()`,
+    js: `// Paste your JavaScript/Node.js code here...\nconst express = require('express');\nconst app = express();\n\napp.get('/run', (req, res) => {\n    const cmd = req.query.cmd;\n    eval(cmd); // Command injection / Eval vulnerability\n    res.send("Executed");\n});`,
+    ts: `// Paste your TypeScript/React code here...\nimport React from 'react';\n\nexport const Output = ({ userContent }: { userContent: string }) => {\n    return <div dangerouslySetInnerHTML={{ __html: userContent }} />; // XSS vulnerability\n};`,
+    go: `// Paste your Go code here...\npackage main\nimport "database/sql"\nimport "fmt"\n\nfunc getUser(db *sql.DB, username string) {\n    query := fmt.Sprintf("SELECT * FROM users WHERE username = '%s'", username) // SQL injection\n    db.Query(query)\n}`
+  };
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,9 +79,10 @@ export default function Home() {
         formData.append('file', file);
       } else {
         if (!code || !code.trim()) {
-          throw new Error("Please paste your Python code to initialize scanning.");
+          throw new Error("Please paste your source code to initialize scanning.");
         }
         formData.append('code', code);
+        formData.append('extension', language);
       }
 
       const response = await fetchApi('/api/scan/json', {
@@ -115,7 +124,7 @@ export default function Home() {
           <span className="text-primary uppercase tracking-wide text-3xl md:text-4xl font-black block mt-2">Level Up Your Defenses</span>
         </h1>
         <p className="max-w-xl mx-auto text-slate-550 text-xs font-bold leading-relaxed">
-          Concurrently execute Bandit AST and Semgrep pattern checkers. Find security defects and review side-by-side secure patches to clear the level!
+          Analyze Python, JavaScript, TypeScript, and Go codebases. Concurrently execute security engines to find defects and review side-by-side secure patches.
         </p>
       </div>
 
@@ -197,13 +206,13 @@ export default function Home() {
                         Drag and drop codebase
                       </p>
                       <p className="text-[10px] text-slate-400 font-bold">
-                        Supports single <span className="text-primary font-bold font-mono">.py</span> files or compressed <span className="text-primary font-bold font-mono">.zip</span> archives (Max 10MB)
+                        Supports <span className="text-primary font-bold font-mono">.py, .js, .ts, .go</span> files or compressed <span className="text-primary font-bold font-mono">.zip</span> archives (Max 10MB)
                       </p>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".py,.zip"
+                      accept=".py,.js,.jsx,.ts,.tsx,.go,.zip"
                       className="hidden"
                       onChange={handleFileChange}
                     />
@@ -233,13 +242,22 @@ export default function Home() {
                 <div className="form-control">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">Input Buffer</span>
-                    <span className="text-[9px] text-slate-400 font-mono font-bold">pasted_code.py</span>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as any)}
+                      className="cartoon-input-sm py-1 px-3 text-xs bg-white font-bold border-2 border-slate-900 focus:outline-none shadow-[1px_1px_0px_#000] cursor-pointer"
+                    >
+                      <option value="py">Python (.py)</option>
+                      <option value="js">JavaScript (.js)</option>
+                      <option value="ts">TypeScript (.ts)</option>
+                      <option value="go">Go (.go)</option>
+                    </select>
                   </div>
                   <textarea
                     name="code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder="# Paste your Python code here...&#10;import sqlite3&#10;def get_user(username):&#10;    conn = sqlite3.connect('database.db')&#10;    cursor = conn.cursor()&#10;    cursor.execute(f&quot;SELECT * FROM users WHERE username = '{username}'&quot;)&#10;    return cursor.fetchone()"
+                    placeholder={placeholders[language]}
                     className="cartoon-input textarea h-64 w-full font-mono text-xs p-4 leading-relaxed text-slate-800 focus:outline-none"
                   ></textarea>
                 </div>

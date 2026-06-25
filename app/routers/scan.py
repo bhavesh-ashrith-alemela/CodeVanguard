@@ -43,7 +43,8 @@ async def trigger_scan(
     request: Request,
     background_tasks: BackgroundTasks,
     file: Optional[UploadFile] = File(None),
-    code: Optional[str] = Form(None)
+    code: Optional[str] = Form(None),
+    extension: str = Form("py")
 ):
     ip = get_client_ip(request)
     if not scan_limiter.is_allowed(ip):
@@ -55,7 +56,7 @@ async def trigger_scan(
     if origin and host not in origin:
         raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
     """
-    Handles user uploads (.py or .zip) or pasted code.
+    Handles user uploads (files or .zip) or pasted code.
     Initiates parallel scans in the background.
     """
     scan_id = uuid.uuid4().hex
@@ -85,10 +86,10 @@ async def trigger_scan(
         if file_size > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Pasted code exceeds maximum limit of 10MB.")
             
-        temp_path = save_pasted_code(code, scan_id)
+        temp_path = save_pasted_code(code, scan_id, extension)
     else:
         # No file or code provided
-        raise HTTPException(status_code=400, detail="Please upload a file or paste your Python code to scan.")
+        raise HTTPException(status_code=400, detail="Please upload a file or paste your code to scan.")
 
     # Create scan entry in SQLite (pending status)
     create_scan(scan_id, filename, file_size)
@@ -242,7 +243,8 @@ async def trigger_scan_json(
     request: Request,
     background_tasks: BackgroundTasks,
     file: Optional[UploadFile] = File(None),
-    code: Optional[str] = Form(None)
+    code: Optional[str] = Form(None),
+    extension: str = Form("py")
 ):
     """Processes code/file uploads and returns a JSON response containing the scan_id."""
     ip = get_client_ip(request)
@@ -266,9 +268,9 @@ async def trigger_scan_json(
         file_size = len(code.encode("utf-8"))
         if file_size > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="Pasted code exceeds maximum limit of 10MB.")
-        temp_path = save_pasted_code(code, scan_id)
+        temp_path = save_pasted_code(code, scan_id, extension)
     else:
-        raise HTTPException(status_code=400, detail="Please upload a file or paste your Python code to scan.")
+        raise HTTPException(status_code=400, detail="Please upload a file or paste your code to scan.")
 
     create_scan(scan_id, filename, file_size)
     background_tasks.add_task(run_scan, scan_id, temp_path)
