@@ -115,7 +115,9 @@ The project is structured in a **decoupled architecture**:
 
 To avoid data loss on Render's Free tier (which has an ephemeral filesystem), you must use an external database:
 * Sign up for a free PostgreSQL database on **Supabase** (`https://supabase.com`).
-* Copy the connection **URI string** from Database Settings and replace the password placeholder.
+* **CRITICAL**: Click the **Connect** button at the top of the Supabase project dashboard, choose **Connection Pooler**, set the mode to **Session** (uses port `5432`), and copy the connection URI. Do **NOT** use the **Direct Connection** URI, as it is IPv6-only and will fail with `Network is unreachable` on Render's IPv4 network.
+* Replace the password placeholder in the copied URI.
+
 
 ### 2. Deploying the Backend (Render / Docker)
 
