@@ -142,3 +142,81 @@ async def wipe_database(request: Request):
     create_audit_log(user["id"], "database_wipe", "Admin purged all database records", ip)
     
     return RedirectResponse(url="/admin/dashboard", status_code=303)
+
+
+# --- REST JSON API ENDPOINTS FOR ADMIN ---
+
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+async def get_current_admin_api(request: Request):
+    """Route dependency ensuring a valid admin session Bearer token or cookie is present."""
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        token = request.cookies.get("session_token")
+        
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication token missing.")
+        
+    user = get_user_by_session(token)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=401, detail="Invalid token or unauthorized role.")
+    return user
+
+@router.post("/api/login")
+async def admin_login_json(request: Request, login_data: LoginRequest):
+    """Validates login credentials, handles rate limits, and returns a session token."""
+    ip = request.client.host if request.client else "unknown"
+    
+    # Rate Limiting Check
+    if not login_limiter.is_allowed(ip):
+        raise HTTPException(status_code=429, detail="Too many failed login attempts. Please wait 15 minutes.")
+        
+    user = authenticate_user(login_data.username, login_data.password)
+    if not user:
+        create_audit_log(1, "login_failed", f"Failed API login attempt for username: {login_data.username}", ip)
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+        
+    if user["role"] != "admin":
+        create_audit_log(user["id"], "login_failed", "Non-admin attempted to login to admin portal via API", ip)
+        raise HTTPException(status_code=403, detail="Access denied. Admins only.")
+        
+    # Successful Session Creation
+    token = create_session(user["id"])
+    create_audit_log(user["id"], "login_success", "Admin logged in successfully via API", ip)
+    
+    return {
+        "status": "success",
+        "token": token,
+        "username": user["username"],
+        "role": user["role"]
+    }
+
+@router.get("/api/stats")
+async def admin_stats_json(admin_user: dict = Depends(get_current_admin_api)):
+    """Returns database stats and audit logs for the authenticated admin."""
+    stats = get_db_stats()
+    audit_logs = get_audit_logs()
+    history = get_scan_history()
+    
+    return {
+        "stats": stats,
+        "audit_logs": audit_logs,
+        "history": history
+    }
+
+@router.post("/api/wipe")
+async def wipe_database_json(request: Request, admin_user: dict = Depends(get_current_admin_api)):
+    """Purges the database (scans, issues, logs, sessions). Requires Bearer authentication."""
+    ip = request.client.host if request.client else "unknown"
+    wipe_all_data()
+    create_audit_log(admin_user["id"], "database_wipe", "Admin purged all database records via API", ip)
+    
+    return {"status": "success", "message": "Database wiped successfully."}
+

@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from app.utils.db import init_db
 from app.routers import scan, admin
 
+from fastapi.middleware.cors import CORSMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup actions: Initialize SQLite schema
@@ -21,6 +23,16 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Configure CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Set to specific domains if production safety is required, or keep * for a public demo API
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

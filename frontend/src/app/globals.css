@@ -1,0 +1,202 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* HSL overrides for high-contrast light mode */
+  --p: 28 100% 50%;        /* Primary: Cartoon Orange (#ff6b00) */
+  --pc: 0 0% 100%;
+  --s: 170 100% 35%;       /* Secondary: Playful Teal/Mint (#00b087) */
+  --sc: 0 0% 100%;
+  --a: 35 100% 45%;
+  --ac: 0 0% 100%;
+  --n: 215 15% 15%;        /* Neutral: Charcoal Black */
+  --nc: 0 0% 100%;
+  --b1: 0 0% 100%;         /* Base 100: White */
+  --b2: 210 20% 98%;
+  --b3: 220 14% 96%;
+  --bc: 215 15% 15%;       /* Text: Charcoal */
+  
+  --er: 355 85% 55%;       /* Error: Red */
+  --su: 170 100% 35%;      /* Success: Teal */
+  --wa: 38 95% 50%;
+  --in: 210 90% 50%;
+}
+
+@theme {
+  --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --color-primary: hsl(28 100% 50%);
+  --color-secondary: hsl(170 100% 35%);
+  --color-neutral: hsl(215 15% 15%);
+  --color-error: hsl(355 85% 55%);
+}
+
+/* Warm Light Gray Canvas background */
+body {
+  background-color: #f1f3f6 !important;
+  color: #0f172a !important;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Cartoon Card */
+.cartoon-card {
+  background: #ffffff;
+  border: 4px solid #0f172a;
+  border-radius: 20px;
+  box-shadow: 6px 6px 0px #0f172a;
+  transition: all 0.15s ease;
+  overflow: hidden;
+}
+
+.cartoon-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0px #0f172a;
+}
+
+/* Cartoon window top bar decoration */
+.window-header {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 4px solid #0f172a;
+}
+
+.window-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.window-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid #0f172a;
+}
+
+/* Cartoon Button */
+.cartoon-btn {
+  background-color: hsl(var(--p));
+  color: #ffffff;
+  border: 4px solid #0f172a;
+  border-radius: 12px;
+  box-shadow: 3px 3px 0px #0f172a;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.1s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active & Inactive state overrides */
+.cartoon-btn.active {
+  background-color: hsl(var(--p)) !important;
+  color: #ffffff !important;
+}
+
+.cartoon-btn.inactive {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.cartoon-btn:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #0f172a;
+}
+
+.cartoon-btn:disabled {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Cartoon Input & Textarea */
+.cartoon-input {
+  border: 4px solid #0f172a;
+  border-radius: 12px;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 3px 3px 0px #cbd5e1;
+  transition: all 0.1s ease;
+}
+
+.cartoon-input:focus {
+  border-color: hsl(var(--p));
+  outline: none;
+  box-shadow: 3px 3px 0px hsl(var(--p));
+}
+
+/* HP Progress Bar */
+.cartoon-bar {
+  height: 20px;
+  background: #ffffff;
+  border: 4px solid #0f172a;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cartoon-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--p)) 0%, #ff8c00 100%);
+  border-right: 4px solid #0f172a;
+  transition: width 0.8s ease-in-out;
+}
+
+/* Cartoon Badge */
+.cartoon-badge {
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 10px;
+  padding: 3px 8px;
+  box-shadow: 2px 2px 0px #0f172a;
+  display: inline-block;
+}
+
+/* Severity Indicators */
+.sev-glow-critical {
+  border-left: 8px solid hsl(var(--er)) !important;
+}
+.sev-glow-high {
+  border-left: 8px solid #ff7b00 !important;
+}
+.sev-glow-medium {
+  border-left: 8px solid #ffbb00 !important;
+}
+.sev-glow-low {
+  border-left: 8px solid hsl(var(--s)) !important;
+}
+
+/* Grid background matching user design */
+.grid-bg {
+  background-size: 24px 24px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
