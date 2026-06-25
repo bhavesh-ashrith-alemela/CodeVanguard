@@ -4,6 +4,11 @@ import os
 import hashlib
 import secrets
 from datetime import datetime
+from contextlib import contextmanager
+
+# PostgreSQL imports (only used if DATABASE_URL environment variable is set)
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 DB_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 DB_PATH = os.path.join(DB_DIR, "codevanguard.db")
@@ -11,10 +16,78 @@ DB_PATH = os.path.join(DB_DIR, "codevanguard.db")
 # Ensure database directory exists (useful for container volumes on Render)
 os.makedirs(DB_DIR, exist_ok=True)
 
+class PostgresCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+    
+    def execute(self, query, params=None):
+        # Translate SQLite primary key auto-increment to Postgres SERIAL
+        query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        # Translate SQLite ? placeholders to Postgres %s
+        query = query.replace("?", "%s")
+        if params:
+            self.cursor.execute(query, params)
+        else:
+            self.cursor.execute(query)
+            
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        return dict(row) if row else None
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        return [dict(row) for row in rows]
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cursor.close()
+            
+    def __getattr__(self, name):
+        return getattr(self.cursor, name)
+
+class PostgresConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        
+    def cursor(self):
+        cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+        return PostgresCursorWrapper(cursor)
+        
+    def commit(self):
+        self.conn.commit()
+        
+    def rollback(self):
+        self.conn.rollback()
+        
+    def close(self):
+        self.conn.close()
+
+@contextmanager
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        conn = psycopg2.connect(database_url)
+        try:
+            yield PostgresConnectionWrapper(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    else:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 def init_db():
     """Initializes the database schema if it doesn't already exist."""
