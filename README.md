@@ -10,6 +10,17 @@ The project is structured in a **decoupled architecture**:
 
 ---
 
+## Tech Stack
+
+- **Frontend**: Next.js (React App Router), TypeScript, Tailwind CSS, Lucide React
+- **Backend**: FastAPI, Uvicorn, Python, Pydantic, Jinja2
+- **Security Scanners**: Bandit (AST parsing) & Semgrep (pattern matching)
+- **Database**: SQLite (local development fallback) & PostgreSQL / Supabase (production)
+- **Report Exporters**: xhtml2pdf / WeasyPrint (PDF generation), Pandas (CSV/JSON/HTML generation)
+
+
+---
+
 ## Key Features
 
 - **Double-Engine SAST Scanner**: Concurrently executes **Bandit** (AST syntax tree inspections) and **Semgrep** (rule-based pattern checks) locally and offline.
@@ -98,28 +109,34 @@ The project is structured in a **decoupled architecture**:
 
 ---
 
-## Hardened Production Deployment
+## Hardened Production Deployment (100% Free Stack)
 
-### 1. Deploying the Backend (Render / Docker)
+### 1. Provisioning a Database (Supabase)
 
-Render automatically builds and deploys the container using the root `Dockerfile`.
+To avoid data loss on Render's Free tier (which has an ephemeral filesystem), you must use an external database:
+* Sign up for a free PostgreSQL database on **Supabase** (`https://supabase.com`).
+* Copy the connection **URI string** from Database Settings and replace the password placeholder.
 
-* **Instance Type**: Docker Web Service.
-* **Persistent Disk**: Mount a `1 GiB` volume at `/data` to store the SQLite database.
+### 2. Deploying the Backend (Render / Docker)
+
+Render automatically builds and deploys the backend container on the Free tier.
+
+* **Instance Type**: Docker Web Service (Free tier).
 * **Environment Variables**:
   * `ENV` = `production`
   * `PORT` = `8000`
-  * `DATA_DIR` = `/data`
+  * `DATABASE_URL` = `postgresql://postgres.[username]:[password]@...` *(Your Supabase connection string)*
   * `DEFAULT_ADMIN_USER` = `<your-admin-user>`
-  * `DEFAULT_ADMIN_PASS` = `<strong-admin-pass>` (Raises startup error if unset)
-  * `ALLOWED_ORIGINS` = `https://your-frontend.vercel.app` (Limits CORS requests)
+  * `DEFAULT_ADMIN_PASS` = `<strong-admin-pass>` (Required in production, will error if missing)
+  * `ALLOWED_ORIGINS` = `https://your-frontend.vercel.app` (CORS whitelisting)
 
-### 2. Deploying the Frontend (Vercel)
+### 3. Deploying the Frontend (Vercel)
 
 * **Framework Preset**: Next.js
 * **Root Directory**: `frontend/`
 * **Environment Variables**:
   * `NEXT_PUBLIC_API_URL` = `https://your-backend-subdomain.onrender.com` (Your Render URL)
+
 
 ---
 
