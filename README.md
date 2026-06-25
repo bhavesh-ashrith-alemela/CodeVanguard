@@ -1,8 +1,9 @@
 # CodeVanguard
 
-> **Secure your Python codebases in seconds.**
+> **Secure your codebases in seconds.**
+> **Live Application:** [https://code-vanguard.vercel.app/](https://code-vanguard.vercel.app/)
 
-CodeVanguard is a high-performance, developer-focused Static Application Security Testing (SAST) application designed to analyze Python source code and compressed ZIP codebases for bugs, security weaknesses, and configuration errors.
+CodeVanguard is a high-performance, developer-focused Static Application Security Testing (SAST) application designed to analyze Python, JavaScript, TypeScript, and Go source code or compressed ZIP codebases for bugs, security weaknesses, and configuration errors.
 
 The project is structured in a **decoupled architecture**:
 1. **FastAPI REST API Backend**: Serves endpoints for asynchronous scanning execution, report generation, and system administration metrics.
