@@ -34,7 +34,7 @@ export default function RootLayout({
                 <span>CodeVanguard</span>
               </div>
               <p className="text-xs font-bold">Quest: Scan. Detect. Secure. In Seconds.</p>
-              <p className="text-[9px] mt-1 text-slate-400 font-bold">&copy; 2026 Bhavesh Reddy. All rights reserved.</p>
+              <p className="text-[9px] mt-1 text-slate-400 font-bold">&copy; 2026 CodeVanguard. All rights reserved.</p>
             </aside>
           </footer>
         </ToastProvider>
