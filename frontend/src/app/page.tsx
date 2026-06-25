@@ -114,9 +114,29 @@ export default function Home() {
           SECURE YOUR CODEBASE <br className="hidden sm:inline" />
           <span className="text-primary uppercase tracking-wide text-3xl md:text-4xl font-black block mt-2">Level Up Your Defenses</span>
         </h1>
-        <p className="max-w-xl mx-auto text-slate-500 text-xs font-bold leading-relaxed">
+        <p className="max-w-xl mx-auto text-slate-550 text-xs font-bold leading-relaxed">
           Concurrently execute Bandit AST and Semgrep pattern checkers. Find security defects and review side-by-side secure patches to clear the level!
         </p>
+      </div>
+
+      {/* 4-Step Quick Flowboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-2">
+        <div className="cartoon-card-sm p-4 text-center bg-white">
+          <span className="text-xs font-black text-primary block mb-1 uppercase tracking-wider">1. Upload</span>
+          <p className="text-[10px] text-slate-500 font-bold leading-normal">Drag & drop your Python file or ZIP codebase.</p>
+        </div>
+        <div className="cartoon-card-sm p-4 text-center bg-white">
+          <span className="text-xs font-black text-primary block mb-1 uppercase tracking-wider">2. Detect</span>
+          <p className="text-[10px] text-slate-500 font-bold leading-normal">Dual-engines analyze your code and imports.</p>
+        </div>
+        <div className="cartoon-card-sm p-4 text-center bg-white">
+          <span className="text-xs font-black text-primary block mb-1 uppercase tracking-wider">3. Remediate</span>
+          <p className="text-[10px] text-slate-500 font-bold leading-normal">Get instant side-by-side secure code blueprints.</p>
+        </div>
+        <div className="cartoon-card-sm p-4 text-center bg-white">
+          <span className="text-xs font-black text-primary block mb-1 uppercase tracking-wider">4. Export</span>
+          <p className="text-[10px] text-slate-500 font-bold leading-normal">Generate PDF, HTML, JSON, or CSV audit reports.</p>
+        </div>
       </div>
 
       {/* Main Scanner Box (Cartoon Window Style) */}
