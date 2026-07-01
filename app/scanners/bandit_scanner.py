@@ -54,6 +54,26 @@ class BanditScanner:
                     return []
                     
             issues = []
+            
+            # Parse execution / parsing errors
+            errors = data.get("errors", [])
+            for err in errors:
+                raw_path = err.get("filename", "")
+                rel_path = os.path.relpath(os.path.abspath(raw_path), self.target_dir) if raw_path else "scan"
+                rel_path = rel_path.replace("\\", "/")
+                reason = err.get("reason", "Unknown Bandit scanner error")
+                
+                issues.append({
+                    "scanner": "bandit",
+                    "rule_id": "SYNTAX_ERROR" if "syntax" in reason.lower() else "SCANNER_ERROR",
+                    "severity": "high",
+                    "message": f"Bandit Error: {reason}",
+                    "filepath": rel_path,
+                    "line_number": 1,
+                    "col_number": 0,
+                    "code_snippet": f"File path: {rel_path}\nError details: {reason}"
+                })
+
             results = data.get("results", [])
             for res in results:
                 raw_path = res.get("filename", "")

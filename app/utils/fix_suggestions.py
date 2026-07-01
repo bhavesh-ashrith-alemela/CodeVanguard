@@ -148,6 +148,22 @@ if user_provided_url.startswith(("http://", "https://")):
 else:
     raise ValueError("Invalid protocol")""",
         "doc_url": "https://cwe.mitre.org/data/definitions/73.html"
+    },
+    "SYNTAX_ERROR": {
+        "title": "Fix Code Syntax Error",
+        "description": "The file contains a syntax or parsing error, which prevents the static analysis engines (Bandit/Semgrep) from parsing the code structure. Review the error details and fix the syntax mismatch.",
+        "before": """# INVALID: Syntax error (e.g. colon outside string or misplaced parenthesis)
+print("hi":)""",
+        "after": """# SECURED / VALID: Valid python syntax
+print("hi:")""",
+        "doc_url": "https://docs.python.org/3/tutorial/errors.html#syntax-errors"
+    },
+    "SCANNER_ERROR": {
+        "title": "Resolve Scanner Execution Error",
+        "description": "The security scanner encountered an error parsing rules, reading target files, or executing rules. Review the error log detail and ensure all source paths and configurations are valid.",
+        "before": "# VULNERABLE: Scanner execution blocked or rule contains errors",
+        "after": "# SECURED: Scanner executed successfully on all code files and rules",
+        "doc_url": "https://semgrep.dev/docs/"
     }
 }
 

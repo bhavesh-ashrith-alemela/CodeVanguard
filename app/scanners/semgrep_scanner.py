@@ -55,6 +55,56 @@ class SemgrepScanner:
                     return []
                     
             issues = []
+            
+            # Parse execution / parsing / rule errors
+            errors = data.get("errors", [])
+            for err in errors:
+                err_type = str(err.get("type", ""))
+                is_syntax = ("parsing" in err_type.lower() or "syntax" in err_type.lower() or "parsing" in str(err.get("message", "")).lower()) and "rule" not in err_type.lower()
+                
+                raw_path = err.get("path", "")
+                if not raw_path and err.get("spans"):
+                    raw_path = err["spans"][0].get("file", "")
+                
+                if raw_path:
+                    if not os.path.isabs(raw_path):
+                        full_path = os.path.join(self.target_dir, raw_path)
+                    else:
+                        full_path = raw_path
+                    rel_path = os.path.relpath(os.path.abspath(full_path), self.target_dir)
+                    rel_path = rel_path.replace("\\", "/")
+                else:
+                    rel_path = "scan"
+                    full_path = ""
+                
+                spans = err.get("spans", [])
+                line_no = 1
+                col_no = 0
+                if spans:
+                    start_info = spans[0].get("start", {})
+                    line_no = start_info.get("line", 1)
+                    col_no = start_info.get("col", 0)
+                
+                message = err.get("message", "Semgrep scanner error")
+                message = message.replace(self.target_dir, ".")
+                if raw_path:
+                    message = message.replace(raw_path, ".")
+                
+                snippet = get_code_snippet(full_path, line_no) if full_path else ""
+                if not snippet:
+                    snippet = f"Error Type: {err_type}\nDetails: {message}"
+                    
+                issues.append({
+                    "scanner": "semgrep",
+                    "rule_id": "SYNTAX_ERROR" if is_syntax else "SCANNER_ERROR",
+                    "severity": "high",
+                    "message": f"Semgrep {err_type or 'Error'}: {message}",
+                    "filepath": rel_path,
+                    "line_number": line_no,
+                    "col_number": col_no,
+                    "code_snippet": snippet
+                })
+
             results = data.get("results", [])
             for res in results:
                 # Semgrep paths are typically relative to where it is run, or absolute
