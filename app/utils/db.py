@@ -165,6 +165,14 @@ def init_db():
         # Index for issues foreign key
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_issues_scan_id ON issues (scan_id)")
         
+        # Enable Row Level Security (RLS) on PostgreSQL tables (for Supabase security compliance)
+        if os.environ.get("DATABASE_URL"):
+            cursor.execute("ALTER TABLE scans ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE issues ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE users ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;")
+
         conn.commit()
         
         # Auto-create default admin account
