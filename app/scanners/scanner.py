@@ -55,4 +55,7 @@ async def run_scan(scan_id: str, target_dir: str):
         error_msg = f"Scan failed: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
         update_scan_status(scan_id, "failed", error_message=str(e))
+    finally:
+        from app.utils.file_handler import delete_scan_dir
+        delete_scan_dir(scan_id)
 

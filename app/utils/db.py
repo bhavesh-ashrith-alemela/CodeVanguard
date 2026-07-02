@@ -465,7 +465,7 @@ def get_db_stats() -> dict:
     return stats
 
 def wipe_all_data():
-    """Wipes all scans, issues, sessions, and audit logs (keeps users)."""
+    """Wipes all scans, issues, sessions, and audit logs (keeps users), and clears temp directories."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM issues")
@@ -473,3 +473,13 @@ def wipe_all_data():
         cursor.execute("DELETE FROM sessions")
         cursor.execute("DELETE FROM audit_logs")
         conn.commit()
+        
+    # Clean up all files in the temp directory
+    try:
+        import shutil
+        temp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "temp")
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            os.makedirs(temp_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Error cleaning up temp directory on wipe: {e}")

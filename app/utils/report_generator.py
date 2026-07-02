@@ -3,7 +3,7 @@ import json
 import csv
 import io
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.utils.fix_suggestions import get_fix_suggestion
 
 # Check for WeasyPrint availability
@@ -353,7 +353,7 @@ def generate_report_html(scan: dict, issues: list) -> str:
     
     # We render this using simple string replacement or simple Jinja Environment
     # Since we are using Jinja templates for HTML anyway, let's load from memory template
-    env = Environment()
+    env = Environment(autoescape=select_autoescape(['html', 'xml']))
     template = env.from_string(template_str)
     return template.render(scan=scan, issues=issues, rich_issues=rich_issues)
 

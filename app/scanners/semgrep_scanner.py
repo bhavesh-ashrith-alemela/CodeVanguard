@@ -38,7 +38,15 @@ class SemgrepScanner:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60.0)
+            except asyncio.TimeoutError:
+                try:
+                    process.kill()
+                except OSError:
+                    pass
+                stdout, stderr = await process.communicate()
+                raise RuntimeError("Semgrep scan execution timed out (limit: 60s)")
             
             output_str = stdout.decode("utf-8", errors="ignore").strip()
             if not output_str:

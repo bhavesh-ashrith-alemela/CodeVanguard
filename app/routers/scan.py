@@ -50,11 +50,22 @@ async def trigger_scan(
     if not scan_limiter.is_allowed(ip):
         raise HTTPException(status_code=429, detail="Too many scans submitted. Please wait a minute.")
         
-    # Origin verification to prevent CSRF
+    # Origin / Referer verification to prevent CSRF
+    from urllib.parse import urlparse
     origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
     host = request.headers.get("host")
-    if origin and host not in origin:
-        raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
+    
+    if origin:
+        parsed_origin = urlparse(origin)
+        if parsed_origin.netloc != host:
+            raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
+    elif referer:
+        parsed_referer = urlparse(referer)
+        if parsed_referer.netloc != host:
+            raise HTTPException(status_code=403, detail="CSRF check failed: Referer mismatch.")
+    else:
+        raise HTTPException(status_code=403, detail="CSRF check failed: Missing Origin or Referer header.")
     """
     Handles user uploads (files or .zip) or pasted code.
     Initiates parallel scans in the background.
@@ -219,11 +230,22 @@ async def remove_scan(request: Request, scan_id: str):
     if not user or user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Unauthorized: Admins only.")
         
-    # Origin verification to prevent CSRF
+    # Origin / Referer verification to prevent CSRF
+    from urllib.parse import urlparse
     origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
     host = request.headers.get("host")
-    if origin and host not in origin:
-        raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
+    
+    if origin:
+        parsed_origin = urlparse(origin)
+        if parsed_origin.netloc != host:
+            raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
+    elif referer:
+        parsed_referer = urlparse(referer)
+        if parsed_referer.netloc != host:
+            raise HTTPException(status_code=403, detail="CSRF check failed: Referer mismatch.")
+    else:
+        raise HTTPException(status_code=403, detail="CSRF check failed: Missing Origin or Referer header.")
         
     ip = get_client_ip(request)
     delete_scan(scan_id)

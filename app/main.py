@@ -26,13 +26,14 @@ app = FastAPI(
 )
 
 # Configure CORS middleware
-cors_origins = ["*"]
+cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if os.environ.get("ENV", "development").lower() == "production":
     allowed_origin_env = os.environ.get("ALLOWED_ORIGINS")
     if allowed_origin_env:
         cors_origins = [origin.strip() for origin in allowed_origin_env.split(",")]
     else:
-        print("SECURITY WARNING: Running in production mode but ALLOWED_ORIGINS is not set! Defaulting to '*' wildcard origins.")
+        print("SECURITY WARNING: Running in production mode but ALLOWED_ORIGINS is not set! Defaulting to deployed app origins.")
+        cors_origins = ["https://code-vanguard.vercel.app"]
 
 app.add_middleware(
     CORSMiddleware,
