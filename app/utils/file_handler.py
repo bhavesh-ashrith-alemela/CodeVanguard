@@ -55,9 +55,15 @@ def save_uploaded_file(file: UploadFile, scan_id: str) -> tuple[str, bool]:
     scan_dir = get_scan_dir(scan_id)
     os.makedirs(scan_dir, exist_ok=True)
     
-    filename = file.filename
+    # Sanitize the filename to prevent directory traversal
+    filename = os.path.basename(file.filename)
     temp_file_path = os.path.join(scan_dir, filename)
     
+    # Path traversal validation check
+    if not is_safe_path(scan_dir, temp_file_path):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid file path sequence.")
+        
     # Write file to disk
     with open(temp_file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
