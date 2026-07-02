@@ -133,22 +133,9 @@ async def wipe_database(request: Request):
     except HTTPException:
         raise HTTPException(status_code=403, detail="Unauthorized action.")
         
-    # Origin / Referer verification to prevent CSRF
-    from urllib.parse import urlparse
-    origin = request.headers.get("origin")
-    referer = request.headers.get("referer")
-    host = request.headers.get("host")
-    
-    if origin:
-        parsed_origin = urlparse(origin)
-        if parsed_origin.netloc != host:
-            raise HTTPException(status_code=403, detail="CSRF check failed: Origin mismatch.")
-    elif referer:
-        parsed_referer = urlparse(referer)
-        if parsed_referer.netloc != host:
-            raise HTTPException(status_code=403, detail="CSRF check failed: Referer mismatch.")
-    else:
-        raise HTTPException(status_code=403, detail="CSRF check failed: Missing Origin or Referer header.")
+    # Protect against CSRF
+    from app.utils.security import verify_csrf
+    verify_csrf(request)
         
     ip = request.client.host if request.client else "unknown"
     wipe_all_data()

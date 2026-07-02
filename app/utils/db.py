@@ -30,14 +30,7 @@ class PostgresCursorWrapper:
         else:
             self.cursor.execute(query)
             
-    def fetchone(self):
-        row = self.cursor.fetchone()
-        return dict(row) if row else None
 
-    def fetchall(self):
-        rows = self.cursor.fetchall()
-        return [dict(row) for row in rows]
-        
     def __enter__(self):
         return self
         
