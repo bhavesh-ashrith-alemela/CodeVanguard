@@ -95,5 +95,18 @@ class TestDatabaseAdapter(unittest.TestCase):
         self.assertEqual(len(issue["fingerprint"]), 64) # SHA-256 length
         self.assertEqual(issue["state"], "open")
 
+    def test_sanitize_database_url_special_characters(self):
+        """Verifies special characters (%, ?, #, @) in db password are safely percent-encoded for psycopg2."""
+        from app.utils.db import sanitize_database_url
+
+        raw_url = "postgresql://postgres.mfz4c:%cmZR?qE%?t8se4@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
+        sanitized = sanitize_database_url(raw_url)
+
+        self.assertIn("%25cmZR%3FqE%25%3Ft8se4", sanitized)
+        self.assertNotIn("?qE", sanitized.split("@")[0]) # ? must be escaped in userinfo
+
+        # Verify idempotency (no double encoding)
+        self.assertEqual(sanitize_database_url(sanitized), sanitized)
+
 if __name__ == "__main__":
     unittest.main()

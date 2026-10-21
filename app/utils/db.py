@@ -25,6 +25,29 @@ os.makedirs(DB_DIR, exist_ok=True)
 
 _pg_pool = None
 
+def sanitize_database_url(url: str) -> str:
+    """
+    Safely percent-encodes special characters in the database password
+    (such as %, ?, #, @, :) to prevent psycopg2 DSN parsing errors.
+    """
+    if not url or not url.startswith(("postgresql://", "postgres://")):
+        return url
+    try:
+        import urllib.parse
+        prefix, rest = url.split("://", 1)
+        if "@" not in rest:
+            return url
+        # Split on the last '@' to isolate userinfo from hostinfo
+        userinfo, hostinfo = rest.rsplit("@", 1)
+        if ":" not in userinfo:
+            return url
+        username, password = userinfo.split(":", 1)
+        # Avoid double-encoding if already percent-encoded
+        safe_password = urllib.parse.quote(urllib.parse.unquote(password), safe="")
+        return f"{prefix}://{username}:{safe_password}@{hostinfo}"
+    except Exception:
+        return url
+
 def get_pg_pool():
     """Lazily initializes and returns the PostgreSQL ThreadedConnectionPool."""
     global _pg_pool
@@ -35,6 +58,9 @@ def get_pg_pool():
         if psycopg2 is None:
             raise RuntimeError("DATABASE_URL is set but psycopg2 is not installed!")
         
+        # Sanitize password encoding in URI
+        database_url = sanitize_database_url(database_url)
+
         # Enforce sslmode=require for Supabase / production connection pooler
         if "sslmode=" not in database_url:
             sep = "&" if "?" in database_url else "?"
