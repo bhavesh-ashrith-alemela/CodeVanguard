@@ -16,7 +16,17 @@ from fastapi.responses import JSONResponse
 async def lifespan(app: FastAPI):
     # Startup actions: Initialize schema and install token redaction filter
     print("CodeVanguard Startup: Initializing database...")
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        import traceback
+        print("!!!!!!!!!!!!!!!! CRITICAL DATABASE INITIALIZATION ERROR !!!!!!!!!!!!!!!!")
+        traceback.print_exc()
+        print(f"Database error details: {e}")
+        print("Tip: If using Supabase with Render, ensure you use the Connection Pooler host (aws-0-*.pooler.supabase.com:5432) as direct host (db.*.supabase.co) requires IPv6 which Render does not support.")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        raise
+
     install_log_redaction_filter()
     init_error_monitoring(app)
     yield

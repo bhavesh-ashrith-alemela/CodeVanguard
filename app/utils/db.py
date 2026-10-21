@@ -61,6 +61,14 @@ def get_pg_pool():
         # Sanitize password encoding in URI
         database_url = sanitize_database_url(database_url)
 
+        # Check for IPv6 direct Supabase host
+        if ".supabase.co" in database_url and "pooler.supabase.com" not in database_url:
+            print(
+                "[CRITICAL WARNING] DATABASE_URL appears to use a direct Supabase host (db.*.supabase.co). "
+                "Render does NOT support IPv6 outbound connections and direct Supabase hosts are IPv6-only. "
+                "You must use the Supabase Connection Pooler host (aws-0-*.pooler.supabase.com:5432) in your DATABASE_URL on Render!"
+            )
+
         # Enforce sslmode=require for Supabase / production connection pooler
         if "sslmode=" not in database_url:
             sep = "&" if "?" in database_url else "?"
@@ -68,7 +76,11 @@ def get_pg_pool():
             
         min_conn = int(os.environ.get("DB_POOL_MIN", 1))
         max_conn = int(os.environ.get("DB_POOL_MAX", 5))
-        _pg_pool = ThreadedConnectionPool(minconn=min_conn, maxconn=max_conn, dsn=database_url)
+        try:
+            _pg_pool = ThreadedConnectionPool(minconn=min_conn, maxconn=max_conn, dsn=database_url)
+        except Exception as e:
+            print(f"[DATABASE POOL ERROR] Failed to connect to PostgreSQL: {e}")
+            raise
     return _pg_pool
 
 class PostgresCursorWrapper:
