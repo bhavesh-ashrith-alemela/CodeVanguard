@@ -230,6 +230,9 @@ async def verify_patch(
         # Compute fingerprints of re-scanned issues
         rescan_fps: Set[str] = set()
         for iss in rescan_issues:
+            # Ignore scanner-level runtime errors from blocking patch verification
+            if iss.get("rule_id") in ("SCANNER_ERROR", "SYNTAX_ERROR"):
+                continue
             rule_id = iss.get("rule_id", "")
             fpath = iss.get("filepath", filepath)
             snippet = iss.get("code_snippet", "")

@@ -38,7 +38,22 @@ jobs:
 
       - name: Run Backend Security & Unit Tests (123+ tests)
         run: |
-          python3 -m unittest discover -v tests
+          set -o pipefail
+          python3 -m unittest discover -v tests 2>&1 | tee test_run.log || {
+            echo "::error title=Backend Unit Test Failure::One or more tests failed in CI environment."
+            echo "=================== CI TEST RUN LOG DUMP ==================="
+            cat test_run.log
+            echo "============================================================"
+            exit 1
+          }
+
+      - name: Upload Test Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-logs
+          path: test_run.log
+          if-no-files-found: ignore
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4

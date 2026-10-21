@@ -19,9 +19,9 @@ def get_preexec_isolation_fn(timeout_seconds: float):
             cpu_limit = int(timeout_seconds) + 5
             resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit + 5))
             
-            # Virtual memory cap: 1 GB
+            # Virtual memory cap: 4 GB (safe for modern 64-bit multi-runtime tools like Semgrep)
             if hasattr(resource, "RLIMIT_AS"):
-                mem_bytes = 1024 * 1024 * 1024
+                mem_bytes = 4 * 1024 * 1024 * 1024
                 resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
         except Exception:
             pass
