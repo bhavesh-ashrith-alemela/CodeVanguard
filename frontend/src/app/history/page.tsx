@@ -12,13 +12,20 @@ export default function HistoryPage() {
   const [history, setHistory] = useState<ScanMetadata[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [unauthorized, setUnauthorized] = useState<boolean>(false);
 
   const loadHistory = async () => {
     try {
       const response = await fetchApi('/api/history/json');
+      if (response.status === 401) {
+        setUnauthorized(true);
+        setHistory([]);
+        return;
+      }
       if (!response.ok) throw new Error("Failed to read history records.");
       const data = await response.json();
-      setHistory(data.history);
+      setHistory(data.history || []);
+      setUnauthorized(false);
     } catch (error) {
       console.error(error);
       showToast("Could not load scan history from database.", "error");
@@ -60,7 +67,7 @@ export default function HistoryPage() {
           Terminal Audit Records
         </h2>
         <span className="text-xs font-mono font-bold text-slate-500 uppercase">
-          {loading ? 'LOADING...' : `${history.length} RUNS LOADED`}
+          {loading ? 'LOADING...' : unauthorized ? 'AUTH REQUIRED' : `${history.length} RUNS LOADED`}
         </span>
       </div>
 
@@ -79,6 +86,21 @@ export default function HistoryPage() {
             <div className="text-center py-12">
               <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
               <p className="text-[10px] text-slate-400 font-bold mt-2">Retrieving database log rows...</p>
+            </div>
+          ) : unauthorized ? (
+            <div className="text-center py-12">
+              <div className="max-w-md mx-auto space-y-3">
+                <span className="p-3 bg-amber-50 rounded-lg text-amber-600 border border-amber-200 inline-block">
+                  <Shield className="w-8 h-8" />
+                </span>
+                <p className="font-extrabold text-slate-800 text-base">Admin Authentication Required</p>
+                <p className="text-xs text-slate-500">Scan history contains full system audit logs. Please log in as an administrator to inspect historical scan runs.</p>
+                <div className="pt-2">
+                  <Link href="/admin/login" className="cartoon-button inline-flex items-center gap-2 text-xs py-2 px-4 bg-primary text-white">
+                    Admin Sign In
+                  </Link>
+                </div>
+              </div>
             </div>
           ) : history.length === 0 ? (
             <div className="text-center py-12">

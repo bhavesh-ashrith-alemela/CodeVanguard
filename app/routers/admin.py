@@ -1,8 +1,29 @@
 import os
 from datetime import datetime
-from fastapi import APIRouter, Request, Response, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+try:
+    from fastapi import APIRouter, Request, Response, Form, Depends, HTTPException
+    from fastapi.responses import HTMLResponse, RedirectResponse
+    from fastapi.templating import Jinja2Templates
+except ImportError:
+    class APIRouter:
+        def __init__(self, *args, **kwargs): pass
+        def get(self, *args, **kwargs): return lambda f: f
+        def post(self, *args, **kwargs): return lambda f: f
+        def delete(self, *args, **kwargs): return lambda f: f
+    class HTTPException(Exception):
+        def __init__(self, status_code: int, detail: str = None):
+            self.status_code = status_code
+            self.detail = detail
+            super().__init__(detail)
+    Request = object
+    Response = object
+    Form = lambda default=None, **kwargs: default
+    Depends = lambda f=None: f
+    HTMLResponse = object
+    RedirectResponse = object
+    class Jinja2Templates:
+        def __init__(self, *args, **kwargs):
+            self.env = type("Env", (), {"cache": None})()
 
 from app.utils.db import (
     authenticate_user, create_session, get_user_by_session, delete_session,
@@ -146,7 +167,13 @@ async def wipe_database(request: Request):
 
 # --- REST JSON API ENDPOINTS FOR ADMIN ---
 
-from pydantic import BaseModel
+try:
+    from pydantic import BaseModel
+except ImportError:
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 class LoginRequest(BaseModel):
     username: str

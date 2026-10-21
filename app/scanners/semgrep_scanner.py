@@ -1,25 +1,35 @@
 import os
+from typing import Optional, List
 from app.scanners.parser import get_code_snippet, normalize_severity
 from app.scanners.runner import execute_scanner_process
 
 class SemgrepScanner:
-    def __init__(self, target_dir: str):
+    def __init__(self, target_dir: str, target_files: Optional[List[str]] = None):
         self.target_dir = os.path.abspath(target_dir)
+        self.target_files = target_files
 
     async def scan(self) -> list:
         """
         Executes Semgrep asynchronously and returns a list of parsed issues.
         """
         rules_path = os.path.join(os.path.dirname(__file__), "rules.yaml")
+        if self.target_files is not None:
+            if not self.target_files:
+                return []
+            scan_targets = self.target_files
+        else:
+            scan_targets = [self.target_dir]
+
         args = [
             "scan",
             f"--config={rules_path}",
             "--json",
             "--quiet",
             "--metrics=off",
+            "--disable-version-check",
             "--no-git-ignore",
-            self.target_dir
-        ]
+            "--"
+        ] + scan_targets
         
         data = await execute_scanner_process("semgrep", args, timeout=60.0)
         

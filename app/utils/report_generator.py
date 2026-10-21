@@ -3,7 +3,13 @@ import json
 import csv
 import io
 from datetime import datetime
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+except ImportError:
+    Environment = None
+    FileSystemLoader = None
+    select_autoescape = None
+
 from app.utils.fix_suggestions import get_fix_suggestion
 
 # Check for WeasyPrint availability
@@ -13,7 +19,12 @@ try:
 except (OSError, ImportError):
     HAS_WEASYPRINT = False
 
-import xhtml2pdf.pisa as pisa
+try:
+    import xhtml2pdf.pisa as pisa
+    HAS_XHTML2PDF = True
+except ImportError:
+    pisa = None
+    HAS_XHTML2PDF = False
 
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports")
 

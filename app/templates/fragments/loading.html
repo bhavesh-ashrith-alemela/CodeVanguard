@@ -24,7 +24,7 @@
         <div class="space-y-1">
             <progress class="progress progress-primary w-full h-2 rounded-lg" value="45" max="100"></progress>
             <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                <span>QUEST STATUS: <span class="text-primary font-bold uppercase">{{ scan.status }}</span></span>
+                <span>QUEST STATUS: <span class="text-primary font-bold uppercase">{{ scan.status }} &bull; {{ scan.progress or 'queued' }}</span></span>
                 <span id="elapsed-timer">TIME ELAPSED: 0s</span>
             </div>
         </div>

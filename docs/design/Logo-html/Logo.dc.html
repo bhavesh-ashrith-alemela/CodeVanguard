@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CodeVanguard Logo</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F4EE;font-family:'Space Grotesk',system-ui,sans-serif;color:#14141A}
+.m{font-family:'Space Mono',ui-monospace,monospace;font-size:12px;color:#55555F}
+.b{border:2px solid #14141A;box-shadow:5px 5px 0 #14141A;border-radius:18px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:20px}
+.lock{display:flex;align-items:center;gap:14px}
+.w{letter-spacing:-1px}
+</style>
+</helmet>
+<div style="width:1000px;height:640px;box-sizing:border-box;padding:40px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1.3fr 1fr;gap:28px">
+<div class="b" style="grid-column:1 / 4;background:#fff">
+<span class="m">PRIMARY</span>
+<div class="lock" style="gap:22px;align-self:center">
+<svg width="104" height="104" viewBox="0 0 52 52" role="img" aria-label="CodeVanguard mark"><rect x="8" y="8" width="44" height="44" rx="12" fill="#B8A2FF" stroke="#14141A" stroke-width="2"></rect><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+<div class="w" style="font-size:84px;line-height:1"><span style="font-weight:500">Code</span><span style="font-weight:700">Vanguard</span></div>
+</div>
+<span class="m">The V is the front line. The orange dot is the issue it caught.</span>
+</div>
+<div class="b" style="background:#14141A">
+<span class="m" style="color:#C9C8D0">ON INK</span>
+<div class="lock" style="align-self:center">
+<svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#D6F25B"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#14141A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D" stroke="#14141A" stroke-width="1.5"></circle></svg>
+<div class="w" style="font-size:26px;color:#F5F4EE"><span style="font-weight:500">Code</span><span style="font-weight:700">Vanguard</span></div>
+</div>
+<span></span>
+</div>
+<div class="b" style="background:#D6F25B">
+<span class="m" style="color:#14141A">ON LIME</span>
+<div class="lock" style="align-self:center">
+<svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+<div class="w" style="font-size:26px"><span style="font-weight:500">Code</span><span style="font-weight:700">Vanguard</span></div>
+</div>
+<span></span>
+</div>
+<div class="b" style="background:#fff">
+<span class="m">SMALL SIZES</span>
+<div style="display:flex;align-items:flex-end;gap:18px;align-self:center">
+<svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+<svg width="40" height="40" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+<svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+<svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#14141A"></rect><path d="M14 17L24 34L34 17" fill="none" stroke="#D6F25B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="24" cy="14" r="3.8" fill="#FF6B3D"></circle></svg>
+</div>
+<span></span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":640}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,20 +1,37 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Shield, AlertTriangle, FileText, CheckCircle, XCircle, Search, 
-  ExternalLink, Trophy, HelpCircle, AlertCircle, Info, Loader2 
+  ExternalLink, ArrowLeft, ChevronDown, Loader2, Sparkles 
 } from 'lucide-react';
-import { useToast } from '@/components/ToastProvider';
+import { 
+  StatusCard, Button, Chip, SkeletonStatusCard, SkeletonCard, 
+  ErrorState, EmptyState 
+} from '@/components/ui';
 import { fetchApi, API_BASE, ScanMetadata, Issue } from '@/lib/api';
+
+const STAGES: Record<string, { label: string; desc: string; percent: number }> = {
+  queued: { label: 'QUEUED IN WORKER', desc: 'Job dispatched to background worker queue...', percent: 15 },
+  downloading: { label: 'DOWNLOADING ARCHIVE', desc: 'Streaming tarball archive securely from GitHub...', percent: 30 },
+  extracting: { label: 'SAFE ARCHIVE EXTRACTION', desc: 'Validating archive members, rejecting symlinks and traversal paths...', percent: 45 },
+  filtering: { label: 'FILTERING WORKSPACE', desc: 'Applying .codevanguardignore, stripping minified assets and lockfiles...', percent: 60 },
+  'scanning bandit': { label: 'ANALYZING BANDIT AST', desc: 'Executing Python AST security and injection checks...', percent: 75 },
+  'scanning semgrep': { label: 'RUNNING SEMGREP ENGINE', desc: 'Running offline pattern rules across codebase...', percent: 85 },
+  saving: { label: 'COMPUTING FINGERPRINTS', desc: 'Generating deterministic issue fingerprints and saving reports...', percent: 95 },
+  completed: { label: 'COMPLETED', desc: 'Analysis completed successfully!', percent: 100 },
+  failed: { label: 'FAILED', desc: 'Scan execution encountered an error.', percent: 100 }
+};
+
+const ITEMS_PER_PAGE = 10;
 
 function ResultsClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { showToast } = useToast();
   
-  const scanId = searchParams.get('id');
+  const scanId = searchParams.get('id') || searchParams.get('scan_id');
 
   const [scan, setScan] = useState<ScanMetadata | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -25,6 +42,7 @@ function ResultsClient() {
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [scannerFilter, setScannerFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
   
   // Polling Timer States
   const [elapsedTime, setElapsedTime] = useState<number>(0);
@@ -37,37 +55,46 @@ function ResultsClient() {
       return;
     }
 
-    let intervalId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
+    let isCancelled = false;
+    let pollDelay = 1000;
     
-    // Timer increment
     const timerId = setInterval(() => {
       setElapsedTime(Math.floor((Date.now() - scanStartTime) / 1000));
     }, 1000);
 
-    const checkStatus = async () => {
+    const pollStatus = async () => {
       try {
         const response = await fetchApi(`/api/scans/${scanId}/status`);
         if (!response.ok) {
+          if (response.status === 404) {
+            setErrorMsg("Scan record not found in system registry.");
+            setLoading(false);
+            return;
+          }
           throw new Error("Unable to retrieve scan status.");
         }
         const data = await response.json();
+        setScan(data);
         
         if (data.status === 'completed') {
-          clearInterval(intervalId);
           clearInterval(timerId);
           fetchFindings();
+          return;
         } else if (data.status === 'failed') {
-          clearInterval(intervalId);
           clearInterval(timerId);
-          setScan(data);
           setErrorMsg(data.error_message || "Static analysis engine failed.");
           setLoading(false);
+          return;
         } else {
-          setScan(data);
+          pollDelay = Math.min(pollDelay + 500, 3500);
         }
       } catch (error: any) {
-        console.error(error);
-        showToast("Connection issue. Re-establishing terminal hook...", "info");
+        pollDelay = Math.min(pollDelay * 1.5, 5000);
+      }
+
+      if (!isCancelled) {
+        timeoutId = setTimeout(pollStatus, pollDelay);
       }
     };
 
@@ -78,461 +105,608 @@ function ResultsClient() {
         const data = await response.json();
         
         setScan(data.scan);
-        setIssues(data.issues);
+        setIssues(data.issues || []);
         setLoading(false);
       } catch (error: any) {
-        console.error(error);
-        showToast(error.message || "Failed to fetch scan results.", "error");
+        setErrorMsg(error.message || "Failed to fetch scan results.");
         setLoading(false);
       }
     };
 
-    checkStatus();
-    intervalId = setInterval(checkStatus, 2000);
+    pollStatus();
 
     return () => {
-      clearInterval(intervalId);
+      isCancelled = true;
+      clearTimeout(timeoutId);
       clearInterval(timerId);
     };
-  }, [scanId]);
+  }, [scanId, scanStartTime]);
 
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [severityFilter, scannerFilter, searchQuery]);
+
+  // Filtered issues
+  const filteredIssues = useMemo(() => {
+    return issues.filter(issue => {
+      const matchSeverity = severityFilter === 'all' || issue.severity === severityFilter;
+      const matchScanner = scannerFilter === 'all' || issue.scanner === scannerFilter;
+      const searchString = `${issue.filepath} ${issue.message} ${issue.rule_id} ${issue.fix_title}`.toLowerCase();
+      const matchSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase());
+      return matchSeverity && matchScanner && matchSearch;
+    });
+  }, [issues, severityFilter, scannerFilter, searchQuery]);
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredIssues.length / ITEMS_PER_PAGE));
+  const paginatedIssues = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredIssues.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredIssues, currentPage]);
+
+  // Top 3 issues for "Fix first"
+  const topIssues = useMemo(() => {
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    return [...issues].sort((a, b) => {
+      const rankA = severityOrder[a.severity] ?? 4;
+      const rankB = severityOrder[b.severity] ?? 4;
+      return rankA - rankB;
+    }).slice(0, 3);
+  }, [issues]);
+
+  const currentStage = STAGES[scan?.progress || 'queued'] || {
+    label: (scan?.progress || 'SCANNING').toUpperCase(),
+    desc: 'Executing security checks...',
+    percent: 50
+  };
+
+  const backUrl = scan?.repo_id ? `/repos/${scan.repo_id}` : '/dashboard';
+  const backLabel = scan?.repo_id ? 'Back to repository' : 'Back to Dashboard';
+
+  // State 1: Invalid Scan ID
   if (!scanId) {
     return (
-      <div className="cartoon-card bg-white p-8 text-center max-w-md mx-auto space-y-4">
-        <span className="p-3 bg-red-50 text-error rounded-full inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
-          <AlertCircle className="w-8 h-8" />
-        </span>
-        <h3 className="text-lg font-black text-slate-800 uppercase">Invalid Request</h3>
-        <p className="text-xs text-slate-500 font-bold">No scan identification code was supplied. Please return home and scan a codebase.</p>
-        <button onClick={() => router.push('/')} className="cartoon-btn cartoon-btn-sm px-4 py-2 text-xs mx-auto">
-          Go Home
-        </button>
+      <div className="max-w-[1160px] mx-auto w-full py-12 px-4">
+        <ErrorState
+          title="Invalid Scan Request"
+          message="No scan identification parameter was provided. Please return to the dashboard and trigger a scan."
+          onRetry={() => router.push('/dashboard')}
+        />
       </div>
     );
   }
 
+  // State 2: Active Scan Polling / Loading
   if (loading && (!scan || (scan.status !== 'completed' && scan.status !== 'failed'))) {
     return (
-      <div className="cartoon-card bg-white p-8 md:p-12 text-center relative overflow-hidden animate-slide-up w-full max-w-xl mx-auto">
-        <div className="absolute -top-12 -left-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-      
-        <div className="max-w-md mx-auto space-y-6">
-          <div className="relative flex items-center justify-center w-20 h-20 mx-auto">
-            <span className="absolute w-16 h-16 rounded-full border-4 border-primary/20 animate-ping"></span>
-            <Loader2 className="w-10 h-10 text-primary animate-spin scale-150 relative z-10" />
+      <div className="max-w-[1160px] mx-auto w-full py-8 px-4 sm:px-6 flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <Link
+            href={backUrl}
+            className="inline-flex items-center gap-1.5 font-sans font-bold text-sm text-[#14141A] hover:underline"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>{backLabel}</span>
+          </Link>
+        </div>
+
+        {/* Live scanning progress card */}
+        <div className="border-2 border-[#14141A] rounded-[18px] bg-white p-6 md:p-8 shadow-[5px_5px_0_#14141A] flex flex-col items-center text-center gap-6">
+          <div className="relative flex items-center justify-center w-16 h-16">
+            <span className="absolute w-14 h-14 rounded-full border-4 border-[#D6F25B] animate-ping opacity-60"></span>
+            <Loader2 className="w-8 h-8 text-[#14141A] animate-spin relative z-10" />
           </div>
-      
-          <div className="space-y-1">
-            <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">ACTIVE SCANNING RUN</h3>
-            <p className="text-xs text-slate-400 italic h-6">Analyzing file imports and dependency trees...</p>
+
+          <div className="flex flex-col gap-2 max-w-md">
+            <Chip label={currentStage.label} variant="running" className="self-center" />
+            <h2 className="text-2xl font-bold font-sans text-[#14141A] m-0">
+              Active Security Scan
+            </h2>
+            <p className="font-sans text-sm text-[#55555F] m-0">
+              {currentStage.desc}
+            </p>
           </div>
-      
-          <div className="space-y-2">
-            <div className="h-4 bg-white border-2 border-slate-900 rounded-lg overflow-hidden relative">
-              <div className="h-full bg-primary border-r-2 border-slate-900 animate-pulse" style={{ width: '45%' }}></div>
+
+          <div className="w-full max-w-md flex flex-col gap-2">
+            <div className="h-4 bg-[#F5F4EE] border-2 border-[#14141A] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#D6F25B] border-r-2 border-[#14141A] transition-all duration-500" 
+                style={{ width: `${currentStage.percent}%` }}
+              />
             </div>
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-              <span>QUEST STATUS: <span className="text-primary font-bold uppercase">{scan?.status || 'PENDING'}</span></span>
-              <span>TIME ELAPSED: {elapsedTime}s</span>
+            <div className="flex items-center justify-between font-mono text-xs text-[#55555F]">
+              <span>STAGE: <strong className="text-[#14141A] uppercase">{scan?.progress || 'QUEUED'}</strong></span>
+              <span>TIME ELAPSED: <strong className="text-[#14141A]">{elapsedTime}s</strong></span>
             </div>
           </div>
         </div>
+
+        <SkeletonStatusCard />
       </div>
     );
   }
 
-  if (errorMsg) {
+  // State 3: Scan Failed / Error
+  if (errorMsg || (scan && scan.status === 'failed')) {
     return (
-      <div className="cartoon-card bg-white p-8 text-center space-y-6 max-w-xl mx-auto animate-slide-up w-full">
-        <div className="space-y-4">
-          <span className="p-3.5 bg-red-55 text-error inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
-            <AlertTriangle className="w-10 h-10" />
-          </span>
-          <h3 className="text-lg font-extrabold text-slate-800 uppercase tracking-tight">Scan Quest Interrupted</h3>
-          <p className="text-xs text-slate-500 font-bold">
-            An unexpected error occurred while executing the static analysis engines. Please inspect the log outputs below.
-          </p>
-        </div>
-        
-        <div className="bg-slate-50 p-4 rounded-lg text-left border border-slate-900 font-mono text-[10px] overflow-x-auto text-error leading-relaxed">
-          <strong>Traceback details:</strong>
-          <pre className="mt-2 whitespace-pre-wrap">{errorMsg}</pre>
-        </div>
-        
-        <div className="pt-2">
-          <button onClick={() => router.push('/')} className="cartoon-btn cartoon-btn-sm px-4 py-2 text-xs mx-auto">
-            Return Home
-          </button>
-        </div>
+      <div className="max-w-[1160px] mx-auto w-full py-8 px-4 sm:px-6 flex flex-col gap-6">
+        <Link
+          href={backUrl}
+          className="inline-flex items-center gap-1.5 font-sans font-bold text-sm text-[#14141A] hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{backLabel}</span>
+        </Link>
+
+        <ErrorState
+          title="Scan Execution Failed"
+          message={errorMsg || scan?.error_message || "The static analysis engines encountered an unexpected error while scanning."}
+          onRetry={() => window.location.reload()}
+        />
       </div>
     );
   }
 
   if (!scan) return null;
 
-  // Grade calculation
-  const total_crit = scan.critical_count;
-  const total_high = scan.high_count;
-  const total_med = scan.medium_count;
-  
-  let grade = "S";
-  let hp = 100;
-  let color = "text-[#10b981] border-[#10b981] bg-green-50 shadow-[3px_3px_0px_#000]";
-  let barColor = "bg-[#10b981]";
-  let title = "FLAWLESS RUN!";
-  let desc = "Zero security defects found. Your codebase is officially impenetrable.";
-  let xp = "+1200 XP (PERFECT SCORE!)";
-
-  if (total_crit > 0 || total_high > 2) {
-    grade = "F";
-    hp = 20;
-    color = "text-error border-error bg-red-50 shadow-[3px_3px_0px_#000]";
-    barColor = "bg-error";
-    title = "SHIELD BROKEN";
-    desc = "Vulnerabilities detected. Defeat the bosses below to repair the shield.";
-    xp = "+50 XP (Stage Initiated)";
-  } else if (total_high > 0 || total_med > 4) {
-    grade = "C";
-    hp = 55;
-    color = "text-orange-500 border-orange-500 bg-orange-50 shadow-[3px_3px_0px_#000]";
-    barColor = "bg-orange-500";
-    title = "SHIELD WARNING";
-    desc = "Significant security threats found. Review the remediation blueprints.";
-    xp = "+200 XP (Stage Cleared)";
-  } else if (total_med > 0) {
-    grade = "B";
-    hp = 80;
-    color = "text-yellow-600 border-yellow-500 bg-yellow-50 shadow-[3px_3px_0px_#000]";
-    barColor = "bg-yellow-500";
-    title = "SHIELD STABLE";
-    desc = "Minor warnings found. Fix them to upgrade your shield to maximum capacity.";
-    xp = "+450 XP (Advanced Defender)";
-  } else if (scan.low_count > 0) {
-    grade = "A";
-    hp = 95;
-    color = "text-info border-info bg-sky-50 shadow-[3px_3px_0px_#000]";
-    barColor = "bg-info";
-    title = "SHIELD SECURE";
-    desc = "Excellent code structure. Clean imports and safe syntax usage throughout.";
-    xp = "+750 XP (Champion Builder)";
-  }
-
-  // Filter Logic
-  const filteredIssues = issues.filter(issue => {
-    const matchSeverity = severityFilter === 'all' || issue.severity === severityFilter;
-    const matchScanner = scannerFilter === 'all' || issue.scanner === scannerFilter;
-    const searchString = `${issue.filepath} ${issue.message} ${issue.rule_id} ${issue.fix_title}`.toLowerCase();
-    const matchSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase());
-    return matchSeverity && matchScanner && matchSearch;
-  });
-
   return (
-    <div className="space-y-8 animate-slide-up w-full text-slate-800">
+    <div className="max-w-[1160px] mx-auto w-full py-6 px-4 sm:px-6 flex flex-col gap-6">
       
-      {/* Top Export Panel */}
-      <div className="cartoon-card">
-        <div className="window-header bg-slate-900 text-white flex items-center justify-between px-4 py-2 border-b-4 border-slate-900 select-none">
-          <span className="text-[10px] font-black uppercase tracking-widest font-mono text-slate-300">report_exporter_subroutine.sh</span>
-          <div className="window-dots flex gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Compliance Logs:</span>
-            <a href={`${API_BASE}/scans/${scanId}/export/pdf`} download className="cartoon-btn cartoon-btn-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 flex items-center gap-1 text-[10px] font-black">
-              <FileText className="w-3.5 h-3.5" /> PDF
-            </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/html`} download className="cartoon-btn cartoon-btn-sm bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 flex items-center gap-1 text-[10px] font-black">
-              <FileText className="w-3.5 h-3.5" /> HTML
-            </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/json`} download className="cartoon-btn cartoon-btn-sm bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 text-[10px] font-black">
-              <FileText className="w-3.5 h-3.5" /> JSON
-            </a>
-            <a href={`${API_BASE}/scans/${scanId}/export/csv`} download className="cartoon-btn cartoon-btn-sm bg-white hover:bg-slate-100 text-slate-800 px-3 py-1 flex items-center gap-1 text-[10px] font-black">
-              <FileText className="w-3.5 h-3.5" /> CSV
-            </a>
-          </div>
-          
-          <div className="text-[10px] text-slate-400 font-mono font-bold">
-            COMPLETED RUN: {scan.timestamp.substring(0, 19).replace('T', ' ')}
-          </div>
+      {/* Top Navigation & Compliance Export Bar */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <Link
+          href={backUrl}
+          className="inline-flex items-center gap-1.5 font-sans font-bold text-sm text-[#14141A] hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{backLabel}</span>
+        </Link>
+
+        {/* Export formats */}
+        <div className="flex items-center gap-2 flex-wrap font-sans text-xs font-bold">
+          <span className="text-[#55555F] uppercase font-mono text-xs">Export report:</span>
+          <a
+            href={`${API_BASE}/api/scans/${scanId}/export/pdf`}
+            download
+            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-[#14141A] rounded-full bg-white text-[#14141A] shadow-[2px_2px_0_#14141A] hover:bg-[#F5F4EE] transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" /> PDF
+          </a>
+          <a
+            href={`${API_BASE}/api/scans/${scanId}/export/html`}
+            download
+            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-[#14141A] rounded-full bg-white text-[#14141A] shadow-[2px_2px_0_#14141A] hover:bg-[#F5F4EE] transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" /> HTML
+          </a>
+          <a
+            href={`${API_BASE}/api/scans/${scanId}/export/json`}
+            download
+            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-[#14141A] rounded-full bg-white text-[#14141A] shadow-[2px_2px_0_#14141A] hover:bg-[#F5F4EE] transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" /> JSON
+          </a>
+          <a
+            href={`${API_BASE}/api/scans/${scanId}/export/csv`}
+            download
+            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-[#14141A] rounded-full bg-white text-[#14141A] shadow-[2px_2px_0_#14141A] hover:bg-[#F5F4EE] transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" /> CSV
+          </a>
+          <a
+            href={`${API_BASE}/api/scans/${scanId}/export/sarif`}
+            download
+            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-[#14141A] rounded-full bg-white text-[#14141A] shadow-[2px_2px_0_#14141A] hover:bg-[#F5F4EE] transition-all"
+          >
+            <FileText className="w-3.5 h-3.5" /> SARIF
+          </a>
         </div>
       </div>
 
-      {/* HUD Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Shield Integrity */}
-        <div className="cartoon-card p-6 space-y-4 lg:col-span-2 flex flex-col justify-between bg-white">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Shield Integrity Monitor</span>
-              <span className="text-xs font-black text-primary font-mono uppercase tracking-wider">{title}</span>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-[10px] font-mono font-black text-slate-600 uppercase">
-                <span>Shield capacity: {hp} HP / 100 HP</span>
-                <span>Quest XP: <span className="text-primary font-black">{xp}</span></span>
-              </div>
-              <div className="cartoon-bar">
-                <div className={`cartoon-bar-fill ${barColor}`} style={{ width: `${hp}%` }}></div>
-              </div>
-            </div>
+      {/* Target Metadata Bar */}
+      <div className="border-2 border-[#14141A] rounded-[14px] bg-[#14141A] text-white p-4 flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 font-bold">
+            <span className="text-[#D6F25B] uppercase">TARGET:</span>
+            <span>{scan.filename}</span>
           </div>
-
-          <p className="text-xs text-slate-500 font-bold leading-relaxed pt-2 border-t border-slate-100 mt-2">
-            <strong>Vanguard evaluation:</strong> {desc}
-          </p>
-        </div>
-
-        {/* Grade */}
-        <div className="cartoon-card p-6 flex flex-row items-center gap-6 justify-center bg-white">
-          <div className={`w-20 h-20 rounded-full border-4 border-slate-900 flex items-center justify-center font-black text-3xl ${color}`}>
-            {grade}
-          </div>
-          <div className="space-y-1 text-left">
-            <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Rank Score</div>
-            <div className="text-sm font-black text-slate-800 uppercase tracking-tight">
-              {grade === 'S' || grade === 'A' ? 'Secure Cleared' : 'Stage Insecure'}
+          {scan.commit_sha && (
+            <div className="bg-[#24242E] px-2 py-0.5 rounded border border-[#3A3A4A] text-[11px]">
+              <span className="text-[#888899]">SHA: </span>
+              <span className="text-[#D6F25B] font-bold">{scan.commit_sha.slice(0, 7)}</span>
             </div>
-            <div className="text-[9px] text-slate-400 font-bold uppercase">Evaluated by Boss Threats</div>
-          </div>
+          )}
+          {scan.branch && (
+            <div className="bg-[#24242E] px-2 py-0.5 rounded border border-[#3A3A4A] text-[11px]">
+              <span className="text-[#888899]">BRANCH: </span>
+              <span className="text-white font-bold">{scan.branch}</span>
+            </div>
+          )}
         </div>
 
-      </div>
-
-      {/* Stats Summary Tally */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="cartoon-card p-4 text-center space-y-1 bg-white">
-          <div className="text-2xl font-black text-slate-800">{scan.total_issues}</div>
-          <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Total Threats</div>
-        </div>
-        <div className="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-error bg-white">
-          <div className="text-2xl font-black text-error">{scan.critical_count}</div>
-          <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Critical</div>
-        </div>
-        <div className="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-orange-500 bg-white">
-          <div className="text-2xl font-black text-orange-500">{scan.high_count}</div>
-          <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider">High</div>
-        </div>
-        <div className="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-yellow-500 bg-white">
-          <div className="text-2xl font-black text-yellow-600">{scan.medium_count}</div>
-          <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Medium</div>
-        </div>
-        <div className="cartoon-card p-4 text-center space-y-1 border-l-8 border-l-info bg-white">
-          <div className="text-2xl font-black text-info">{scan.low_count}</div>
-          <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Low</div>
+        <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#A0A0B0]">
+          <span>FILES SCANNED: <strong className="text-[#D6F25B]">{scan.files_scanned ?? 1}</strong></span>
+          <span>SKIPPED: <strong className="text-white">{scan.files_skipped ?? 0}</strong></span>
+          {scan.duration_ms ? (
+            <span>DURATION: <strong className="text-white">{scan.duration_ms}ms</strong></span>
+          ) : null}
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="cartoon-card p-4 space-y-4 bg-white">
-        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
-          
-          {/* Severity filter buttons */}
-          <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg border-2 border-slate-900 w-fit text-[10px] font-black uppercase shadow-[2px_2px_0px_#0f172a]">
-            {(['all', 'critical', 'high', 'medium', 'low'] as const).map((sev) => {
-              const isActive = severityFilter === sev;
-              let label = sev.toUpperCase();
-              if (sev === 'critical') label = 'CRIT';
-              if (sev === 'medium') label = 'MED';
-              
-              let count = scan.total_issues;
-              if (sev === 'critical') count = scan.critical_count;
-              if (sev === 'high') count = scan.high_count;
-              if (sev === 'medium') count = scan.medium_count;
-              if (sev === 'low') count = scan.low_count;
- 
-              let buttonClass = 'text-[9px] font-black rounded px-2.5 py-1.5 transition-all cursor-pointer ';
-              if (isActive) {
-                buttonClass += 'bg-slate-900 text-white';
-              } else {
-                buttonClass += 'bg-transparent text-slate-600';
-                if (sev === 'critical') buttonClass += ' hover:bg-red-50 hover:text-red-500 text-red-500';
-                if (sev === 'high') buttonClass += ' hover:bg-orange-50 hover:text-orange-500 text-orange-500';
-                if (sev === 'medium') buttonClass += ' hover:bg-yellow-50 hover:text-yellow-600 text-yellow-600';
-                if (sev === 'low') buttonClass += ' hover:bg-sky-50 hover:text-sky-600 text-sky-500';
-                if (sev === 'all') buttonClass += ' hover:bg-slate-200';
-              }
- 
-              return (
-                <button
-                  key={sev}
-                  onClick={() => setSeverityFilter(sev)}
-                  className={buttonClass}
-                >
-                  {label} ({count})
-                </button>
-              );
-            })}
-          </div>
-          
-          {/* Search inputs */}
-          <div className="flex flex-col sm:flex-row gap-3 flex-grow lg:max-w-xl">
-            <select 
-              value={scannerFilter}
-              onChange={(e) => setScannerFilter(e.target.value)}
-              className="cartoon-input focus:outline-none text-xs font-extrabold text-slate-700 bg-white px-3 py-1.5 border-4 cursor-pointer"
-            >
-              <option value="all">ALL ENGINE FINDINGS</option>
-              <option value="bandit">BANDIT RULES</option>
-              <option value="semgrep">SEMGREP RULES</option>
-            </select>
-            
-            <div className="relative flex-grow">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
-                <Search className="w-4 h-4" />
+      {/* Step 1 Summary Card: StatusCard */}
+      <StatusCard
+        status={scan.status}
+        branch={scan.branch || 'main'}
+        timestamp={scan.timestamp}
+        critical={scan.critical_count}
+        high={scan.high_count}
+        medium={scan.medium_count}
+        low={scan.low_count}
+        totalIssues={scan.total_issues}
+      />
+
+      {/* State 4: Clean run (Zero issues detected) */}
+      {issues.length === 0 ? (
+        <EmptyState
+          icon={<Shield className="w-8 h-8 text-[#14141A]" />}
+          title="Clean Code — Zero Vulnerabilities Detected"
+          description="The static analysis engines completed successfully with zero security defects found across all scanned files and AST nodes."
+          actionLabel={backLabel}
+          actionHref={backUrl}
+        />
+      ) : (
+        <>
+          {/* Fix first Section: Top 3 priority issues */}
+          <section className="border-2 border-[#14141A] rounded-[18px] bg-white p-6 shadow-[5px_5px_0_#14141A] flex flex-col gap-4">
+            <div className="flex justify-between items-baseline gap-3 flex-wrap">
+              <h2 className="text-xl md:text-2xl font-bold font-sans text-[#14141A] m-0">
+                Fix first
+              </h2>
+              <span className="font-mono text-xs text-[#55555F]">
+                top {topIssues.length} of {issues.length}
               </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search threats by path or keyword..."
-                className="cartoon-input w-full pl-9 bg-white text-xs text-slate-800 px-3 py-1.5 border-4 focus:outline-none"
-              />
             </div>
-          </div>
-          
-        </div>
-      </div>
 
-      {/* Findings registry list */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
-            <AlertTriangle className="w-4.5 h-4.5 text-primary" />
-            Vulnerability Registry
-          </h3>
-          <span className="text-[9px] text-slate-400 font-black font-mono">
-            SHOWING {filteredIssues.length} OF {issues.length} THREATS
-          </span>
-        </div>
-
-        {filteredIssues.length === 0 ? (
-          <div className="cartoon-card p-12 text-center bg-white">
-            <div className="max-w-sm mx-auto space-y-3">
-              <span className="p-3 bg-green-50 text-[#10b981] rounded-xl inline-block border-2 border-slate-900 shadow-[2px_2px_0px_#000]">
-                <Trophy className="w-8 h-8" />
-              </span>
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">Stage Cleared!</h4>
-              <p className="text-xs text-slate-400 font-bold leading-relaxed">
-                No vulnerabilities match the active filter criteria.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredIssues.map((issue) => {
-              let badgeColor = 'bg-sky-500';
-              if (issue.severity === 'critical') badgeColor = 'bg-error';
-              else if (issue.severity === 'high') badgeColor = 'bg-orange-500';
-              else if (issue.severity === 'medium') badgeColor = 'bg-yellow-500 text-black';
-
-              return (
-                <div 
-                  key={issue.id}
-                  className={`cartoon-card hover:shadow-[8px_8px_0px_#0f172a] transition-all duration-150 sev-glow-${issue.severity} bg-white`}
-                >
-                  <details className="group">
-                    <summary className="flex flex-col md:flex-row md:items-center justify-between gap-3 font-extrabold text-slate-800 pr-10 py-3.5 pl-4 select-none cursor-pointer list-none relative">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span className={`cartoon-badge text-[9px] font-black uppercase text-white border-2 border-slate-900 px-2 py-0.5 ${badgeColor}`}>
-                          {issue.severity}
-                        </span>
-                        <div className="text-left">
-                          <span className="font-extrabold text-xs tracking-tight text-slate-800 mr-1.5">{issue.fix_title}</span>
-                          <span className="text-[10px] font-mono text-slate-400 font-bold break-all">{issue.filepath}:{issue.line_number}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 self-start md:self-auto text-[9px] text-slate-400 font-mono font-bold">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded border-2 border-slate-900 text-[8px] text-primary font-black uppercase">
-                          {issue.scanner}
-                        </span>
-                        <span>{issue.rule_id}</span>
-                      </div>
-                      
-                      {/* Accordion arrow indicator */}
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200 group-open:rotate-180">
-                        <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </span>
-                    </summary>
-                    
-                    <div className="bg-slate-50/50 border-t-4 border-slate-900 p-4 space-y-4 text-xs leading-relaxed text-slate-600">
-                      <div className="space-y-1">
-                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Threat intel</h4>
-                        <p className="text-slate-800 text-xs bg-white p-3 rounded-lg border-2 border-slate-900 font-bold">{issue.message}</p>
-                      </div>
-                      
-                      <div className="space-y-1.5">
-                        <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Target code view</h4>
-                        <div className="mockup-code bg-slate-900 text-sky-200 text-[10px] p-4 rounded-xl border-2 border-slate-900 overflow-x-auto leading-relaxed max-w-full">
-                          <pre data-prefix="line" className="text-slate-550 border-r border-slate-800 pr-2 mr-2 inline-block">Loc: {issue.filepath}:{issue.line_number}</pre>
-                          <pre className="whitespace-pre overflow-x-auto mt-2 bg-slate-950 p-2 rounded"><code>{issue.code_snippet}</code></pre>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pt-2">
-                        <div>
-                          <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Blueprint Remediation</h4>
-                          <p className="text-[11px] text-slate-500 font-bold mt-1">{issue.fix_description}</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <div className="text-[10px] font-black text-error flex items-center gap-1">
-                              <XCircle className="w-3.5 h-3.5" /> Before (Vulnerable Code)
-                            </div>
-                            <pre className="bg-red-50 border-2 border-red-200 text-red-700 text-[10px] p-3 rounded-xl font-mono overflow-x-auto leading-relaxed font-bold"><code>{issue.fix_before}</code></pre>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-[10px] font-black text-success flex items-center gap-1">
-                              <CheckCircle className="w-3.5 h-3.5 text-[#10b981]" /> After (Secured Fix)
-                            </div>
-                            <pre className="bg-green-50 border-2 border-green-200 text-green-700 text-[10px] p-3 rounded-xl font-mono overflow-x-auto leading-relaxed font-bold"><code>{issue.fix_after}</code></pre>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {issue.doc_url && (
-                        <div className="flex justify-end pt-2">
-                          <a 
-                            href={issue.doc_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="cartoon-btn cartoon-btn-sm bg-slate-900 text-white px-2.5 py-1 text-[9px] gap-1 flex items-center justify-center"
-                          >
-                            <ExternalLink className="w-2.5 h-2.5" /> Advisory docs
-                          </a>
-                        </div>
-                      )}
+            {/* Top 1 Featured Remediation Box */}
+            {topIssues.length > 0 && (
+              <div className="p-4 border-2 border-[#14141A] rounded-[14px] bg-[#F6FBDD] flex flex-col gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Chip
+                    label={topIssues[0].severity.toUpperCase()}
+                    variant={topIssues[0].severity}
+                  />
+                  <div>
+                    <div className="font-sans font-bold text-sm text-[#14141A]">
+                      {topIssues[0].fix_title}
                     </div>
-                  </details>
+                    <div className="font-mono text-xs text-[#55555F]">
+                      {topIssues[0].filepath}:{topIssues[0].line_number}
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      
+
+                {/* Diff box */}
+                {(topIssues[0].fix_before || topIssues[0].fix_after) && (
+                  <pre className="font-mono text-xs md:text-[13px] leading-relaxed overflow-x-auto border-2 border-[#14141A] rounded-[10px] bg-white p-3 m-0 max-w-full">
+                    {topIssues[0].fix_before && (
+                      <span className="block bg-[#FFD9CC] text-[#14141A] px-1 rounded-sm">
+                        − {topIssues[0].fix_before}
+                      </span>
+                    )}
+                    {topIssues[0].fix_after && (
+                      <span className="block bg-[#DDF58A] text-[#14141A] px-1 rounded-sm mt-1">
+                        + {topIssues[0].fix_after}
+                      </span>
+                    )}
+                  </pre>
+                )}
+
+                <div className="flex justify-between items-center gap-3 flex-wrap">
+                  <span className="font-mono text-xs text-[#55555F]">
+                    {topIssues[0].fix_description || 'Static remediation · Review before applying'}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {scan?.repo_id && (
+                      <Link
+                        href={`/repos/${scan.repo_id}/findings?search=${encodeURIComponent(topIssues[0].rule_id)}`}
+                        className="font-sans text-xs font-bold text-[#14141A] hover:underline inline-flex items-center gap-1 bg-[#D6F25B] px-2.5 py-1 rounded-md border border-[#14141A]"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Auto-fix finding</span>
+                      </Link>
+                    )}
+                    {topIssues[0].doc_url && (
+                      <a
+                        href={topIssues[0].doc_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-sans text-xs font-bold text-[#14141A] hover:underline inline-flex items-center gap-1"
+                      >
+                        <span>Advisory docs</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Top 2 and 3 Finding Rows */}
+            {topIssues.slice(1).map((issue) => (
+              <div
+                key={issue.id}
+                className="pt-3 pb-2 border-t-2 border-[#E2E0D6] flex items-center justify-between gap-3 flex-wrap"
+              >
+                <div className="flex items-center gap-3 flex-wrap min-w-[200px]">
+                  <Chip
+                    label={issue.severity.toUpperCase()}
+                    variant={issue.severity}
+                  />
+                  <div>
+                    <div className="font-sans font-bold text-sm text-[#14141A]">
+                      {issue.fix_title}
+                    </div>
+                    <div className="font-mono text-xs text-[#55555F]">
+                      {issue.filepath}:{issue.line_number}
+                    </div>
+                  </div>
+                </div>
+
+                <span className="font-sans text-xs text-[#55555F] max-w-md">
+                  {issue.fix_description}
+                </span>
+              </div>
+            ))}
+
+            <a
+              href="#findings-table"
+              className="inline-block mt-1 font-sans font-bold text-sm text-[#14141A] hover:underline"
+            >
+              View all {issues.length} findings ↓
+            </a>
+          </section>
+
+          {/* Full Findings Table Section */}
+          <section
+            id="findings-table"
+            className="border-2 border-[#14141A] rounded-[18px] bg-white p-6 shadow-[5px_5px_0_#14141A] flex flex-col gap-5"
+          >
+            <div className="flex justify-between items-center gap-3 flex-wrap">
+              <h2 className="text-xl md:text-2xl font-bold font-sans text-[#14141A] m-0">
+                All Findings
+              </h2>
+              <span className="font-mono text-xs text-[#55555F]">
+                Showing {filteredIssues.length} of {issues.length} findings
+              </span>
+            </div>
+
+            {/* Filters and Search Toolbar */}
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+              
+              {/* Severity filter tabs */}
+              <div className="flex flex-wrap gap-1 bg-[#F5F4EE] p-1 rounded-full border-2 border-[#14141A] w-fit font-sans text-xs font-bold">
+                {(['all', 'critical', 'high', 'medium', 'low'] as const).map((sev) => {
+                  const isActive = severityFilter === sev;
+                  let count = issues.length;
+                  if (sev === 'critical') count = scan.critical_count;
+                  if (sev === 'high') count = scan.high_count;
+                  if (sev === 'medium') count = scan.medium_count;
+                  if (sev === 'low') count = scan.low_count;
+
+                  return (
+                    <button
+                      key={sev}
+                      onClick={() => setSeverityFilter(sev)}
+                      className={`px-3 py-1 rounded-full uppercase transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#14141A] text-[#F5F4EE]'
+                          : 'text-[#14141A] hover:bg-[#E2E0D6]'
+                      }`}
+                    >
+                      {sev} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Scanner filter & text search */}
+              <div className="flex flex-col sm:flex-row gap-2.5 flex-grow lg:max-w-lg">
+                <select
+                  value={scannerFilter}
+                  onChange={(e) => setScannerFilter(e.target.value)}
+                  className="px-3 py-2 border-2 border-[#14141A] rounded-full font-sans text-xs font-bold bg-white text-[#14141A] focus:outline-none"
+                >
+                  <option value="all">All Scanners</option>
+                  <option value="bandit">Bandit AST Rules</option>
+                  <option value="semgrep">Semgrep Rules</option>
+                </select>
+
+                <div className="relative flex-grow">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#55555F] pointer-events-none">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by rule, message or path..."
+                    className="w-full pl-9 pr-3 py-2 border-2 border-[#14141A] rounded-full font-sans text-xs bg-white text-[#14141A] focus:outline-none placeholder:text-[#888899]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Findings List */}
+            {filteredIssues.length === 0 ? (
+              <div className="p-8 text-center bg-[#F5F4EE] border-2 border-[#14141A] rounded-[14px]">
+                <p className="font-sans font-bold text-sm text-[#55555F] m-0">
+                  No findings match the selected severity, scanner, or search query.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {paginatedIssues.map((issue) => (
+                  <div
+                    key={issue.id}
+                    className="border-2 border-[#14141A] rounded-[14px] bg-white shadow-[3px_3px_0_#14141A] overflow-hidden"
+                  >
+                    <details className="group">
+                      <summary className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 select-none cursor-pointer list-none relative">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Chip
+                            label={issue.severity.toUpperCase()}
+                            variant={issue.severity}
+                          />
+                          <div className="text-left">
+                            <span className="font-sans font-bold text-sm text-[#14141A] mr-2">
+                              {issue.fix_title}
+                            </span>
+                            <span className="font-mono text-xs text-[#55555F] break-all">
+                              {issue.filepath}:{issue.line_number}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[#55555F] pr-6 md:pr-8">
+                          <span className="px-2 py-0.5 rounded border border-[#14141A] text-[10px] font-bold uppercase bg-[#F5F4EE] text-[#14141A]">
+                            {issue.scanner}
+                          </span>
+                          <span>{issue.rule_id}</span>
+                          {issue.fingerprint && (
+                            <span className="hidden sm:inline-block bg-[#F5F4EE] text-[#55555F] px-1.5 py-0.5 rounded text-[10px] border border-[#E2E0D6]" title={`Deterministic Fingerprint: ${issue.fingerprint}`}>
+                              FP: {issue.fingerprint.slice(0, 8)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Chevron */}
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200 group-open:rotate-180">
+                          <ChevronDown className="w-4 h-4 text-[#14141A]" />
+                        </span>
+                      </summary>
+
+                      {/* Expandable Details */}
+                      <div className="bg-[#F5F4EE] border-t-2 border-[#14141A] p-4 flex flex-col gap-4 text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-mono text-[10px] uppercase font-bold text-[#55555F]">
+                            Threat Details
+                          </span>
+                          <p className="font-sans text-xs bg-white p-3 rounded-[10px] border-2 border-[#14141A] text-[#14141A] font-bold m-0">
+                            {issue.message}
+                          </p>
+                        </div>
+
+                        {issue.code_snippet && (
+                          <div className="flex flex-col gap-1">
+                            <span className="font-mono text-[10px] uppercase font-bold text-[#55555F]">
+                              Target Code View ({issue.filepath}:{issue.line_number})
+                            </span>
+                            <pre className="bg-[#14141A] text-[#D6F25B] p-3 rounded-[10px] border-2 border-[#14141A] overflow-x-auto font-mono text-xs leading-relaxed m-0 max-w-full">
+                              <code>{issue.code_snippet}</code>
+                            </pre>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-2">
+                          <span className="font-mono text-[10px] uppercase font-bold text-[#55555F]">
+                            Blueprint Remediation
+                          </span>
+                          <p className="font-sans text-xs text-[#55555F] m-0">
+                            {issue.fix_description}
+                          </p>
+
+                          {(issue.fix_before || issue.fix_after) && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+                              {issue.fix_before && (
+                                <div className="flex flex-col gap-1">
+                                  <div className="font-sans font-bold text-[11px] text-[#FF6B3D] flex items-center gap-1">
+                                    <XCircle className="w-3.5 h-3.5" /> Vulnerable Code
+                                  </div>
+                                  <pre className="bg-[#FFD9CC] border-2 border-[#14141A] text-[#14141A] p-2.5 rounded-[10px] font-mono text-xs overflow-x-auto m-0 leading-relaxed font-bold max-w-full">
+                                    <code>{issue.fix_before}</code>
+                                  </pre>
+                                </div>
+                              )}
+                              {issue.fix_after && (
+                                <div className="flex flex-col gap-1">
+                                  <div className="font-sans font-bold text-[11px] text-[#14141A] flex items-center gap-1">
+                                    <CheckCircle className="w-3.5 h-3.5 text-[#14141A]" /> Secured Fix
+                                  </div>
+                                  <pre className="bg-[#DDF58A] border-2 border-[#14141A] text-[#14141A] p-2.5 rounded-[10px] font-mono text-xs overflow-x-auto m-0 leading-relaxed font-bold max-w-full">
+                                    <code>{issue.fix_after}</code>
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {issue.doc_url && (
+                          <div className="flex justify-end pt-1">
+                            <a
+                              href={issue.doc_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 font-sans font-bold text-xs text-[#14141A] hover:underline"
+                            >
+                              <span>Official security advisory docs</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center gap-3 pt-3 border-t-2 border-[#E2E0D6] flex-wrap">
+                <span className="font-mono text-xs text-[#55555F]">
+                  Page {currentPage} of {totalPages}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
     </div>
   );
 }
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center py-24 w-full">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-        <p className="text-xs text-slate-500 font-bold mt-2 font-mono">Loading terminal records...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="max-w-[1160px] mx-auto w-full py-12 px-4 flex flex-col gap-6">
+          <SkeletonStatusCard />
+          <SkeletonCard />
+        </div>
+      }
+    >
       <ResultsClient />
     </Suspense>
   );

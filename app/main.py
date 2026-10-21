@@ -5,15 +5,20 @@ from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
 from app.utils.db import init_db
-from app.routers import scan, admin
+from app.utils.github_app import install_log_redaction_filter
+from app.utils.error_monitoring import init_error_monitoring, capture_exception
+from app.routers import scan, admin, auth, repos, webhook, findings, pulls, badge, autofix, status
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup actions: Initialize SQLite schema
+    # Startup actions: Initialize schema and install token redaction filter
     print("CodeVanguard Startup: Initializing database...")
     init_db()
+    install_log_redaction_filter()
+    init_error_monitoring(app)
     yield
     # Shutdown actions (if any)
     print("CodeVanguard Shutdown...")
@@ -27,17 +32,20 @@ app = FastAPI(
 
 # Configure CORS middleware
 cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+cors_origin_regex = os.environ.get("ALLOWED_ORIGIN_REGEX", r"^https:\/\/code-vanguard(-.*)?\.vercel\.app$")
+
 if os.environ.get("ENV", "development").lower() == "production":
     allowed_origin_env = os.environ.get("ALLOWED_ORIGINS")
     if allowed_origin_env:
         cors_origins = [origin.strip() for origin in allowed_origin_env.split(",")]
     else:
-        print("SECURITY WARNING: Running in production mode but ALLOWED_ORIGINS is not set! Defaulting to deployed app origins.")
+        print("SECURITY NOTE: Defaulting CORS to deployed app origins and Vercel preview domain pattern.")
         cors_origins = ["https://code-vanguard.vercel.app"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +58,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Include routers
 app.include_router(scan.router)
 app.include_router(admin.router)
+app.include_router(auth.router)
+app.include_router(repos.router)
+app.include_router(webhook.router)
+app.include_router(findings.router)
+app.include_router(pulls.router)
+app.include_router(badge.router)
+app.include_router(autofix.router)
+app.include_router(autofix.repo_autofix_router)
+app.include_router(status.router)
 
 # Security headers middleware
 @app.middleware("http")
@@ -77,3 +94,13 @@ async def custom_404_handler(request: Request, exc):
     templates = Jinja2Templates(directory="app/templates")
     templates.env.cache = None  # Workaround for Python 3.14 + Jinja2 cache key TypeError
     return templates.TemplateResponse(request=request, name="error_404.html", context={}, status_code=404)
+
+@app.exception_handler(500)
+async def custom_500_handler(request: Request, exc):
+    """Unhandled internal server error handler with secret and source code scrubbing."""
+    capture_exception(exc, extra={"path": request.url.path, "method": request.method})
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Error details have been scrubbed for privacy."}
+    )
+

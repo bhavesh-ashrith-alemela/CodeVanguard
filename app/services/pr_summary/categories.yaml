@@ -1,0 +1,69 @@
+auth:
+  - "*auth*"
+  - "*login*"
+  - "*session*"
+  - "*jwt*"
+  - "*token*"
+  - "*permission*"
+  - "*role*"
+  - "*oauth*"
+  - "*credential*"
+
+db:
+  - "*migration*"
+  - "*migrations/*"
+  - "*model*"
+  - "*models/*"
+  - "*schema*"
+  - "*sql*"
+  - "*db*"
+  - "*query*"
+  - "*entity*"
+
+subprocess/exec:
+  - "*subprocess*"
+  - "*exec*"
+  - "*command*"
+  - "*runner*"
+  - "*shell*"
+  - "*spawn*"
+  - "*process*"
+
+dependency manifests:
+  - "requirements*.txt"
+  - "package*.json"
+  - "go.mod"
+  - "go.sum"
+  - "Cargo.toml"
+  - "Gemfile*"
+  - "pom.xml"
+  - "build.gradle*"
+  - "Pipfile*"
+  - "pyproject.toml"
+
+ci_workflows:
+  - ".github/workflows/*"
+  - ".gitlab-ci.yml"
+  - "Jenkinsfile*"
+  - ".circleci/*"
+  - ".travis.yml"
+
+config/secrets:
+  - ".env*"
+  - "*config*"
+  - "*.conf"
+  - "*.yaml"
+  - "*.yml"
+  - "*.toml"
+  - "*.ini"
+
+infra:
+  - "Dockerfile*"
+  - "docker-compose*"
+  - "k8s/*"
+  - "helm/*"
+  - "terraform/*"
+  - "*.tf"
+  - "render.yaml"
+  - "vercel.json"
+  - "cloudbuild.yaml"

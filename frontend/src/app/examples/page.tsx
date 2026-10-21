@@ -59,7 +59,7 @@ def run_diagnostic(ip_address):
     code: `import requests
 
 DB_PASSWORD = "super_admin_pass_12903_vanguard"
-STRIPE_API_TOKEN = "sk_live_51Msz32JDjwiSldl20xOsp"
+STRIPE_API_TOKEN = "sk_test_51Msz32JDjwiSldl20xOsp"
 
 def fetch_billing_details(user_id):
     headers = {"Authorization": f"Bearer {STRIPE_API_TOKEN}"}

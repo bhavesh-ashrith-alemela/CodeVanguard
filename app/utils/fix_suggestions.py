@@ -238,16 +238,22 @@ subprocess.run(["ping", "-c", "1", user_ip], shell=False)""",
     # 3. Hardcoded secrets
     if "secret" in rule_lower or "password" in rule_lower or "key" in rule_lower or "token" in rule_lower or "credentials" in msg_lower:
         return {
-            "title": "Extract Hardcoded Secrets",
-            "description": "Storing plaintext credentials, keys, or tokens in source code poses a critical leakage risk. Load secrets from environment variables or a configuration manager.",
-            "before": """# VULNERABLE: Secret embedded in code
-SECRET_KEY = "xyz123_prod_apikey"
-DB_PASS = "admin_password" """,
-            "after": """# SECURED: Fetch from environment variables
+            "title": "Rotate Exposed Credential Immediately",
+            "description": "Rotate this credential immediately; removing it from code or history is secondary. Once an exposed key has been committed, assume it is compromised. Revoke it in your provider console, generate a new credential, and update your production secrets manager. Afterwards, you can optionally purge the secret from git history using git filter-repo.",
+            "before": """# COMPROMISED: Exposed key remains valid in provider systems
+# Note: Simply deleting the line from code does NOT secure the credential!
+AWS_ACCESS_KEY_ID = "AKIA..."
+STRIPE_API_KEY = "sk_live_..." """,
+            "after": """# 1. ROTATE FIRST: Revoke the key in the provider console immediately
+# 2. STORE SECURELY: Inject via environment variable or secret manager
 import os
-SECRET_KEY = os.getenv("SECRET_KEY")
-DB_PASS = os.getenv("DB_PASSWORD")""",
-            "doc_url": "https://cwe.mitre.org/data/definitions/798.html"
+AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+
+# 3. (OPTIONAL) Purge from git history:
+# WARNING: Rewriting git history requires a force-push ('git push --force').
+# This rewrites commit SHAs and will disrupt collaborator branches.
+# git filter-repo --invert-paths --path <path>""",
+            "doc_url": "https://owasp.org/www-community/vulnerabilities/Use_of_hard-coded_password"
         }
         
     # 4. Insecure Hash

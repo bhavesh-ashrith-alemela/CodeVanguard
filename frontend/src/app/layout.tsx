@@ -27,15 +27,22 @@ export default function RootLayout({
           </main>
           
           {/* Footer */}
-          <footer className="footer footer-center p-8 bg-white text-slate-500 border-t-4 border-slate-900 mt-auto text-center flex flex-col items-center justify-center">
-            <aside className="space-y-1">
-              <div className="flex items-center gap-1.5 font-black text-slate-800 mb-1 justify-center text-sm md:text-base">
-                <Shield className="w-5 h-5 text-primary" />
-                <span>CodeVanguard</span>
+          <footer className="p-6 bg-white border-t-2 border-[#14141A] mt-auto">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#D6F25B] border border-[#14141A] flex items-center justify-center">
+                  <Shield className="w-3.5 h-3.5 text-[#14141A]" />
+                </div>
+                <span className="font-black text-sm text-[#14141A]">CodeVanguard</span>
+                <span className="text-xs text-[#55555F]">| SAST &amp; Secret Security</span>
               </div>
-              <p className="text-xs font-bold">Quest: Scan. Detect. Secure. In Seconds.</p>
-              <p className="text-[9px] mt-1 text-slate-400 font-bold">&copy; 2026 CodeVanguard. All rights reserved.</p>
-            </aside>
+              <div className="flex items-center gap-6 font-mono text-xs font-bold text-[#14141A]">
+                <a href="/status" className="hover:underline">System Status</a>
+                <a href="/privacy" className="hover:underline">Data Guarantee</a>
+                <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+              </div>
+              <p className="text-[11px] font-mono text-[#55555F]">&copy; 2026 CodeVanguard. Open-source under MIT.</p>
+            </div>
           </footer>
         </ToastProvider>
       </body>

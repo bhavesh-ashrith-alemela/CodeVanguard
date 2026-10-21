@@ -1,16 +1,23 @@
 import os
+from typing import Optional, List
 from app.scanners.parser import get_code_snippet, normalize_severity
 from app.scanners.runner import execute_scanner_process
 
 class BanditScanner:
-    def __init__(self, target_dir: str):
+    def __init__(self, target_dir: str, target_files: Optional[List[str]] = None):
         self.target_dir = os.path.abspath(target_dir)
+        self.target_files = target_files
 
     async def scan(self) -> list:
         """
         Executes Bandit asynchronously and returns a list of parsed issues.
         """
-        args = ["-f", "json", "-r", "-x", "node_modules,.git,.venv,.next,venv,env,temp", self.target_dir]
+        if self.target_files is not None:
+            if not self.target_files:
+                return []
+            args = ["-f", "json", "--"] + self.target_files
+        else:
+            args = ["-f", "json", "-r", "-x", "node_modules,.git,.venv,.next,venv,env,temp", "--", self.target_dir]
         data = await execute_scanner_process("bandit", args, timeout=60.0)
         
         issues = []

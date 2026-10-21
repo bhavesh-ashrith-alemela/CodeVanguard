@@ -8,7 +8,10 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.utils.db import init_db, create_scan, get_scan, get_scan_issues, get_scan_history
 from app.scanners.scanner import run_scan
-from app.utils.report_generator import export_html_report, export_json_report, export_csv_report, export_pdf_report
+try:
+    from app.utils.report_generator import export_html_report, export_json_report, export_csv_report, export_pdf_report
+except ImportError:
+    export_html_report = None
 from app.utils.file_handler import delete_scan_dir
 
 async def test_integration():

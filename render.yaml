@@ -1,0 +1,117 @@
+services:
+  # 1. FastAPI Web API Service
+  - type: web
+    name: codevanguard-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        sync: false # Set to Supabase Session Pooler URL (e.g. postgresql://postgres.xxx:pass@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require)
+      - key: DB_POOL_MIN
+        value: "1"
+      - key: DB_POOL_MAX
+        value: "5"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: codevanguard-redis
+          property: connectionString
+      - key: DEFAULT_ADMIN_USER
+        value: admin
+      - key: DEFAULT_ADMIN_PASS
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://code-vanguard.vercel.app
+      - key: ALLOWED_ORIGIN_REGEX
+        value: ^https:\/\/code-vanguard(-.*)?\.vercel\.app$
+      - key: FRONTEND_URL
+        value: https://code-vanguard.vercel.app
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_CLIENT_ID
+        sync: false
+      - key: GITHUB_APP_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false # Base64 encoded PEM private key
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false # Fernet URL-safe base64 32-byte key
+      - key: GITHUB_APP_SLUG
+        value: codevanguard
+      - key: SCAN_TIMEOUT_SECONDS
+        value: "300"
+      - key: GLOBAL_CONCURRENT_SCANS
+        value: "5"
+      - key: MAX_REPO_KB
+        value: "51200"
+
+  # 2. Background Task Worker (arq)
+  - type: worker
+    name: codevanguard-worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python -m arq app.worker.WorkerSettings
+    plan: starter
+    envVars:
+      - key: ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set to Supabase Session Pooler URL
+      - key: DB_POOL_MIN
+        value: "1"
+      - key: DB_POOL_MAX
+        value: "5"
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: codevanguard-redis
+          property: connectionString
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false # Base64 encoded PEM private key
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: RETENTION_DAYS
+        value: "30"
+      - key: SCAN_TIMEOUT_SECONDS
+        value: "300"
+      - key: GLOBAL_CONCURRENT_SCANS
+        value: "5"
+      - key: MAX_REPO_KB
+        value: "51200"
+      - key: MAX_DOWNLOAD_BYTES
+        value: "52428800"
+      - key: MAX_UNCOMPRESSED_BYTES
+        value: "104857600"
+      - key: MAX_FILES
+        value: "2000"
+      - key: MAX_FILE_BYTES
+        value: "1048576"
+      - key: SCANNER_UID
+        value: "65534"
+      - key: SCANNER_GID
+        value: "65534"
+      - key: MAX_PR_CHANGED_FILES
+        value: "300"
+      - key: RECONCILE_WEBHOOKS_MINUTES
+        value: "15"
+
+# 3. Render Key Value (Redis)
+  - type: redis
+    name: codevanguard-redis
+    plan: starter
+    ipAllowList: [] # Private network only

@@ -6,7 +6,7 @@ import random
 import os
 
 # 1. Hardcoded Secret (Bandit B105)
-API_SECRET_KEY = "sk_live_vanguard_5f3e9a4d8c7b6a5"
+API_SECRET_KEY = "sk_test_vanguard_5f3e9a4d8c7b6a5"
 DATABASE_PASSWORD = "super_secret_db_pass_123!"
 
 # 2. Bind to all interfaces (Bandit B104)
