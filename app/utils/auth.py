@@ -27,6 +27,9 @@ def get_current_user_optional(request: Request) -> Optional[dict]:
 
     return get_user_by_session(token)
 
+# Alias for backwards compatibility with badge router
+get_authenticated_user_from_request = get_current_user_optional
+
 def require_authenticated_user(request: Request) -> dict:
     """Route dependency requiring a valid authenticated user session."""
     user = get_current_user_optional(request)

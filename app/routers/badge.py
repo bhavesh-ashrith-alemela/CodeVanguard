@@ -20,7 +20,7 @@ except ImportError:
     Request = object
     Depends = lambda f=None: f
 
-from app.utils.auth import get_authenticated_user_from_request, require_authenticated_user, require_repo_access
+from app.utils.auth import get_current_user_optional, require_authenticated_user, require_repo_access
 from app.utils.db import get_repository, get_repository_score_trend, get_db_connection, is_user_repo_member
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ async def get_security_badge(
         raise HTTPException(status_code=404, detail="Repository not found.")
 
     if repo.get("is_private"):
-        user = get_authenticated_user_from_request(request)
+        user = get_current_user_optional(request)
         if not user:
             raise HTTPException(status_code=404, detail="Repository not found.")
         
