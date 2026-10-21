@@ -90,6 +90,11 @@ class PostgresCursorWrapper:
     def execute(self, query, params=None):
         # Translate SQLite primary key auto-increment to Postgres SERIAL
         query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        # Translate SQLite boolean integer defaults to Postgres boolean literals
+        query = query.replace("BOOLEAN NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE")
+        query = query.replace("BOOLEAN NOT NULL DEFAULT 1", "BOOLEAN NOT NULL DEFAULT TRUE")
+        query = query.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE")
+        query = query.replace("BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT TRUE")
         # Translate SQLite ? placeholders to Postgres %s
         query = query.replace("?", "%s")
         if params:

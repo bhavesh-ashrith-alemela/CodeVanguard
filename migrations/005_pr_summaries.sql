@@ -18,4 +18,4 @@ CREATE TABLE IF NOT EXISTS pr_summaries (
 
 CREATE INDEX IF NOT EXISTS idx_pr_summaries_repo_pr ON pr_summaries (repo_id, pr_number, created_at DESC);
 
-ALTER TABLE repositories ADD COLUMN IF NOT EXISTS narrative_enabled BOOLEAN NOT NULL DEFAULT 0;
+ALTER TABLE repositories ADD COLUMN IF NOT EXISTS narrative_enabled BOOLEAN NOT NULL DEFAULT FALSE;
