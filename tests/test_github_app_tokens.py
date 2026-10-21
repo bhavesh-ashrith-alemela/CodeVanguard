@@ -9,12 +9,22 @@ from app.utils.github_app import (
 
 class TestGitHubAppTokens(unittest.TestCase):
     def setUp(self):
-        # Sample simulated RSA private key for testing
-        self.fake_key = (
-            "-----BEGIN RSA PRIVATE KEY-----\n"
-            "MIIEowIBAAKCAQEA0Y3J184920491823091283091283091283091283091283\n"
-            "-----END RSA PRIVATE KEY-----"
-        )
+        # Generate a valid RSA key if cryptography is installed, otherwise fallback to fixture
+        try:
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            from cryptography.hazmat.primitives import serialization
+            priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+            self.fake_key = priv.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+            ).decode("utf-8")
+        except Exception:
+            self.fake_key = (
+                "-----BEGIN RSA PRIVATE KEY-----\n"
+                "MIIEowIBAAKCAQEA0Y3J184920491823091283091283091283091283091283\n"
+                "-----END RSA PRIVATE KEY-----"
+            )
         self.env_patcher = patch.dict(os.environ, {
             "GITHUB_APP_ID": "123456",
             "GITHUB_APP_PRIVATE_KEY": self.fake_key
