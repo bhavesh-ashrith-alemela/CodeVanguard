@@ -25,13 +25,14 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetchApi('/api/login', {
+      const response = await fetchApi('/admin/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ username, password })
       });
+
 
       if (!response.ok) {
         const errorMsg = response.status === 401 

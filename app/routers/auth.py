@@ -47,7 +47,22 @@ router = APIRouter()
 
 def get_client_redirect_base(request: Request) -> str:
     """Returns the frontend base URL for OAuth redirects (Vercel domain or request origin)."""
-    return os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    configured = os.environ.get("FRONTEND_URL")
+    if configured:
+        return configured.rstrip("/")
+
+    # Dynamic fallback based on proxy / request headers if FRONTEND_URL is not explicitly set
+    if hasattr(request, "headers") and request.headers:
+        forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+        if forwarded_host and not forwarded_host.startswith("localhost") and not forwarded_host.startswith("127.0.0.1") and "onrender.com" not in forwarded_host:
+            return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+
+        origin = request.headers.get("origin")
+        if origin and "onrender.com" not in origin:
+            return origin.rstrip("/")
+
+    return "http://localhost:3000"
 
 @router.get("/api/auth/github/login")
 async def github_oauth_login(request: Request, return_to: Optional[str] = "/dashboard"):
@@ -81,10 +96,12 @@ async def github_oauth_login(request: Request, return_to: Optional[str] = "/dash
 
     github_auth_url = f"https://github.com/login/oauth/authorize?{urllib.parse.urlencode(params)}"
     response = RedirectResponse(url=github_auth_url, status_code=303)
+    is_prod = os.environ.get("ENV", "development").lower() == "production"
     # Also set as fallback cookie in case Redis is not active
-    response.set_cookie("oauth_state", state, httponly=True, samesite="lax", max_age=600)
-    response.set_cookie("oauth_return", return_to or "/dashboard", httponly=True, samesite="lax", max_age=600)
+    response.set_cookie("oauth_state", state, httponly=True, samesite="lax", secure=is_prod, max_age=600)
+    response.set_cookie("oauth_return", return_to or "/dashboard", httponly=True, samesite="lax", secure=is_prod, max_age=600)
     return response
+
 
 @router.get("/api/auth/github/callback")
 async def github_oauth_callback(

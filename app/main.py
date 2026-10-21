@@ -42,7 +42,7 @@ app = FastAPI(
 
 # Configure CORS middleware
 cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-cors_origin_regex = os.environ.get("ALLOWED_ORIGIN_REGEX", r"^https:\/\/code-vanguard(-.*)?\.vercel\.app$")
+cors_origin_regex = os.environ.get("ALLOWED_ORIGIN_REGEX", r"^https:\/\/.*\.vercel\.app$")
 
 if os.environ.get("ENV", "development").lower() == "production":
     allowed_origin_env = os.environ.get("ALLOWED_ORIGINS")
@@ -50,7 +50,12 @@ if os.environ.get("ENV", "development").lower() == "production":
         cors_origins = [origin.strip() for origin in allowed_origin_env.split(",")]
     else:
         print("SECURITY NOTE: Defaulting CORS to deployed app origins and Vercel preview domain pattern.")
-        cors_origins = ["https://code-vanguard.vercel.app"]
+        cors_origins = [
+            "https://code-vanguard.vercel.app",
+            "https://codevanguard.vercel.app",
+            "https://codevangurad.vercel.app"
+        ]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,7 +73,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Include routers
 app.include_router(scan.router)
 app.include_router(admin.router)
+app.include_router(admin.admin_api_router)
 app.include_router(auth.router)
+
 app.include_router(repos.router)
 app.include_router(webhook.router)
 app.include_router(findings.router)

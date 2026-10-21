@@ -225,7 +225,14 @@ async def admin_login_json(request: Request, login_data: LoginRequest):
         "role": user["role"]
     }
 
+admin_api_router = APIRouter()
+
+@admin_api_router.post("/api/login")
+async def api_login_alias(request: Request, login_data: LoginRequest):
+    return await admin_login_json(request, login_data)
+
 @router.get("/api/stats")
+
 async def admin_stats_json(admin_user: dict = Depends(get_current_admin_api)):
     """Returns database stats and audit logs for the authenticated admin."""
     stats = get_db_stats()
