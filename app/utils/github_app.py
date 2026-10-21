@@ -46,7 +46,35 @@ def get_github_app_id() -> Optional[str]:
     """Returns the numeric GitHub App ID."""
     return os.environ.get("GITHUB_APP_ID")
 
+def get_github_app_slug() -> str:
+    """Returns the GitHub App slug (URL identifier), querying the GitHub /app API if needed."""
+    configured = os.environ.get("GITHUB_APP_SLUG")
+    if configured:
+        return configured.strip()
+
+    try:
+        app_jwt = generate_app_jwt()
+        req = urllib.request.Request(
+            "https://api.github.com/app",
+            headers={
+                "Authorization": f"Bearer {app_jwt}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "CodeVanguard-SAST/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            slug = data.get("slug")
+            if slug:
+                os.environ["GITHUB_APP_SLUG"] = slug
+                return slug
+    except Exception as e:
+        logging.getLogger(__name__).debug(f"Could not retrieve GitHub App slug dynamically: {e}")
+
+    return os.environ.get("NEXT_PUBLIC_GITHUB_APP_SLUG", "codevanguard")
+
 def get_github_app_private_key() -> Optional[str]:
+
     """
     Returns the decoded PEM private key string.
     Supports either direct PEM text or base64-encoded PEM.

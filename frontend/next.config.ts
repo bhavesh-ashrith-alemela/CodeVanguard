@@ -18,9 +18,18 @@ const nextConfig: NextConfig = {
         source: '/admin/api/:path*',
         destination: `${backendUrl}/admin/api/:path*`,
       },
+      {
+        source: '/github/setup',
+        destination: `${backendUrl}/github/setup`,
+      },
+      {
+        source: '/webhook',
+        destination: `${backendUrl}/webhook`,
+      },
     ];
   },
 };
+
 
 export default nextConfig;
 

@@ -29,13 +29,15 @@ except ImportError:
 from app.utils.db import (
     upsert_installation, get_installation_by_github_id, set_installation_suspension,
     soft_delete_installation, upsert_repository, soft_delete_repository,
-    get_db_connection, create_scan, record_webhook_delivery, update_webhook_delivery_status
+    get_db_connection, create_scan, record_webhook_delivery, update_webhook_delivery_status,
+    add_installation_member, get_user_by_github_id
 )
 from app.utils.rate_limiter import get_redis_client
 from app.queue.redis_pool import enqueue_scan_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
 
 def verify_github_signature(raw_body: bytes, signature_header: Optional[str]) -> bool:
     """Performs constant-time HMAC-SHA256 signature verification against X-Hub-Signature-256."""
@@ -73,6 +75,8 @@ def supersede_active_pr_scans(repo_id: str, pr_number: int, new_scan_id: str) ->
             logger.warning(f"Error superseding older PR scan in Redis: {e}")
 
 @router.post("/api/github/webhook", status_code=202)
+@router.post("/api/webhook/github", status_code=202)
+@router.post("/webhook", status_code=202)
 async def github_webhook_receiver(request: Request):
     """
     GitHub App Webhook Intake:
@@ -82,6 +86,7 @@ async def github_webhook_receiver(request: Request):
     4. Handles pull_request, push, check_run/check_suite rerequests, installation, and repositories.
     5. Enqueues background scan jobs and returns 202 quickly without blocking delivery timeouts.
     """
+
     raw_body = await request.body()
     if len(raw_body) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Webhook payload exceeds maximum size limit (10MB).")
@@ -157,9 +162,18 @@ async def github_webhook_receiver(request: Request):
         account_type = account.get("type", "User")
         account_avatar = account.get("avatar_url")
 
+        sender = payload.get("sender", {})
+        sender_github_id = sender.get("id")
+
         if action == "created":
             inst = upsert_installation(github_inst_id, account_login, account_type, account_avatar)
+            if sender_github_id:
+                sender_user = get_user_by_github_id(sender_github_id)
+                if sender_user:
+                    add_installation_member(inst["id"], sender_user["id"], role="admin")
+
             for r in payload.get("repositories", []):
+
                 new_repo = upsert_repository(
                     inst["id"],
                     r["id"],
