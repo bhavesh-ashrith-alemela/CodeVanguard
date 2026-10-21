@@ -230,7 +230,10 @@ async def verify_patch(
         # Compute fingerprints of re-scanned issues
         rescan_fps: Set[str] = set()
         for iss in rescan_issues:
-            fp = compute_fingerprint(iss)
+            rule_id = iss.get("rule_id", "")
+            fpath = iss.get("filepath", filepath)
+            snippet = iss.get("code_snippet", "")
+            fp = compute_fingerprint(rule_id, fpath, snippet)
             iss["fingerprint"] = fp
             rescan_fps.add(fp)
 

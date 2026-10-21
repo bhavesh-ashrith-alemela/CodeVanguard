@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Backend Security & Unit Tests (123+ tests)
         run: |
-          python3 -m unittest discover tests
+          python3 -m unittest discover -v tests
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4

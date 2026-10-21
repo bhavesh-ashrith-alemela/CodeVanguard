@@ -45,9 +45,13 @@ def normalize_filepath(filepath: str) -> str:
         path = path[2:] if path.startswith("./") else path[1:]
     return path
 
-def compute_fingerprint(rule_id: str, filepath: str, code_snippet: str) -> str:
+def compute_fingerprint(rule_id_or_issue, filepath: str = "", code_snippet: str = "") -> str:
     """
     Computes a deterministic SHA-256 fingerprint for a static analysis issue.
+    
+    Supports either:
+      - compute_fingerprint(issue_dict)
+      - compute_fingerprint(rule_id, filepath, code_snippet)
     
     Formula:
         sha256(rule_id + ":" + normalized_relative_filepath + ":" + normalized_code_snippet)
@@ -57,9 +61,17 @@ def compute_fingerprint(rule_id: str, filepath: str, code_snippet: str) -> str:
     - Changes when the vulnerable code content itself is modified.
     - Path separator independent (Windows vs Unix).
     """
+    if isinstance(rule_id_or_issue, dict):
+        rule_id = rule_id_or_issue.get("rule_id", "") or rule_id_or_issue.get("ruleId", "")
+        filepath = rule_id_or_issue.get("filepath", "") or rule_id_or_issue.get("file", "")
+        code_snippet = rule_id_or_issue.get("code_snippet", "") or rule_id_or_issue.get("snippet", "")
+    else:
+        rule_id = str(rule_id_or_issue or "")
+
     norm_rule = (rule_id or "").strip().lower()
     norm_path = normalize_filepath(filepath)
     norm_snippet = normalize_code_snippet(code_snippet)
 
     raw_payload = f"{norm_rule}:{norm_path}:{norm_snippet}".encode("utf-8")
     return hashlib.sha256(raw_payload).hexdigest()
+
