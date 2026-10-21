@@ -40,10 +40,13 @@ jobs:
         run: |
           set -o pipefail
           python3 -m unittest discover -v tests 2>&1 | tee test_run.log || {
-            echo "::error title=Backend Unit Test Failure::One or more tests failed in CI environment."
-            echo "=================== CI TEST RUN LOG DUMP ==================="
-            cat test_run.log
-            echo "============================================================"
+            echo "## Backend Unit Test Failures" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 120 test_run.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -B 1 -A 5 -E "FAIL:|ERROR:" test_run.log | while IFS= read -r line; do
+              echo "::error title=Test Failure::$line"
+            done
             exit 1
           }
 
