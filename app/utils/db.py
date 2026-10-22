@@ -95,6 +95,11 @@ class PostgresCursorWrapper:
         query = query.replace("BOOLEAN NOT NULL DEFAULT 1", "BOOLEAN NOT NULL DEFAULT TRUE")
         query = query.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE")
         query = query.replace("BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT TRUE")
+        # Translate SQLite INSERT OR IGNORE INTO to Postgres INSERT INTO ... ON CONFLICT DO NOTHING
+        if "INSERT OR IGNORE INTO" in query:
+            query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+            if "ON CONFLICT" not in query:
+                query = query + " ON CONFLICT DO NOTHING"
         # Translate SQLite ? placeholders to Postgres %s
         query = query.replace("?", "%s")
         if params:
@@ -1178,10 +1183,17 @@ def add_installation_member(installation_id: str, user_id: int, role: str = 'mem
     now = datetime.now().isoformat()
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT OR IGNORE INTO installation_members (installation_id, user_id, role, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (installation_id, user_id, role, now))
+        if bool(os.environ.get("DATABASE_URL")):
+            cursor.execute("""
+                INSERT INTO installation_members (installation_id, user_id, role, created_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (installation_id, user_id) DO NOTHING
+            """, (installation_id, user_id, role, now))
+        else:
+            cursor.execute("""
+                INSERT OR IGNORE INTO installation_members (installation_id, user_id, role, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (installation_id, user_id, role, now))
         conn.commit()
 
 def is_user_installation_member(installation_id: str, user_id: int) -> bool:
@@ -1227,7 +1239,7 @@ def upsert_repository(
                 UPDATE repositories
                 SET installation_id = ?, full_name = ?, default_branch = ?, is_private = ?, deleted_at = NULL
                 WHERE github_repo_id = ?
-            """, (installation_id, full_name, default_branch, int(is_private), github_repo_id))
+            """, (installation_id, full_name, default_branch, bool(is_private), github_repo_id))
             repo_id = existing["id"]
         else:
             import uuid
@@ -1237,7 +1249,7 @@ def upsert_repository(
                     id, installation_id, github_repo_id, full_name, default_branch, is_private, created_at
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (repo_id, installation_id, github_repo_id, full_name, default_branch, int(is_private), now))
+            """, (repo_id, installation_id, github_repo_id, full_name, default_branch, bool(is_private), now))
         conn.commit()
 
     return get_repository(repo_id)

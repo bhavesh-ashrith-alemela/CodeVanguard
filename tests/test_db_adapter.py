@@ -108,5 +108,22 @@ class TestDatabaseAdapter(unittest.TestCase):
         # Verify idempotency (no double encoding)
         self.assertEqual(sanitize_database_url(sanitized), sanitized)
 
+    def test_postgres_cursor_wrapper_insert_or_ignore(self):
+        """Verifies PostgresCursorWrapper translates INSERT OR IGNORE INTO to ON CONFLICT DO NOTHING."""
+        from unittest.mock import MagicMock
+        from app.utils.db import PostgresCursorWrapper
+
+        mock_cursor = MagicMock()
+        wrapper = PostgresCursorWrapper(mock_cursor)
+
+        query = "INSERT OR IGNORE INTO installation_members (installation_id, user_id) VALUES (?, ?)"
+        wrapper.execute(query, ("inst_1", 42))
+
+        called_query = mock_cursor.execute.call_args[0][0]
+        self.assertNotIn("INSERT OR IGNORE", called_query)
+        self.assertIn("INSERT INTO installation_members", called_query)
+        self.assertIn("ON CONFLICT DO NOTHING", called_query)
+        self.assertIn("%s, %s", called_query)
+
 if __name__ == "__main__":
     unittest.main()
