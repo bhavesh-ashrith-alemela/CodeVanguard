@@ -38,6 +38,19 @@ export interface Repository {
   latest_scan?: ScanMetadata | null;
 }
 
+export interface GitHubUserRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  default_branch: string;
+  description?: string | null;
+  updated_at?: string;
+  connected?: boolean;
+  connected_repo_id?: string | null;
+}
+
 export interface ScanMetadata {
   id: string;
   repo_id?: string | null;

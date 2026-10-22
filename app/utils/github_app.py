@@ -71,7 +71,7 @@ def get_github_app_slug() -> str:
     except Exception as e:
         logging.getLogger(__name__).debug(f"Could not retrieve GitHub App slug dynamically: {e}")
 
-    return os.environ.get("NEXT_PUBLIC_GITHUB_APP_SLUG", "codevanguard")
+    return os.environ.get("NEXT_PUBLIC_GITHUB_APP_SLUG", "")
 
 def get_github_app_private_key() -> Optional[str]:
 

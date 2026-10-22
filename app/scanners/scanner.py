@@ -101,20 +101,34 @@ async def run_scan(scan_id: str, target_dir: str = "", client_ip: str = "127.0.0
         owner = None
         repo_name = None
 
-        if source_type == "github_app" and repo_id:
+        if source_type in ("github_app", "github_public") and repo_id:
             repo_record = get_repository(repo_id)
             if repo_record:
                 inst = get_installation(repo_record["installation_id"])
-                if inst:
-                    auth_token, _ = get_installation_access_token(inst["github_installation_id"])
+                if inst and inst.get("github_installation_id"):
+                    try:
+                        auth_token, _ = get_installation_access_token(inst["github_installation_id"])
+                    except Exception:
+                        auth_token = None
+                if not auth_token and scan.get("owner_user_id"):
+                    try:
+                        from app.utils.db import get_user_by_id
+                        from app.utils.crypto import decrypt_token
+                        user_rec = get_user_by_id(scan["owner_user_id"])
+                        if user_rec and user_rec.get("encrypted_user_token"):
+                            auth_token = decrypt_token(user_rec["encrypted_user_token"])
+                    except Exception:
+                        auth_token = None
+                if not auth_token:
+                    auth_token = os.environ.get("GITHUB_TOKEN")
                 parts = repo_record["full_name"].split("/", 1)
                 if len(parts) == 2:
                     owner, repo_name = parts[0], parts[1]
 
         # Handle on-demand full git history secret scan
         if trigger == "history":
-            if not owner or not repo_name or not auth_token:
-                err_msg = "Cannot run git history scan: missing repository coordinates or authorization token."
+            if not owner or not repo_name:
+                err_msg = "Cannot run git history scan: missing repository coordinates."
                 logger.warning(err_msg)
                 update_scan_status(scan_id, "failed", error_message=err_msg)
                 update_scan_progress(scan_id, "failed")

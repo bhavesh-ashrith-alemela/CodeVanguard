@@ -28,7 +28,8 @@ from app.utils.auth import require_authenticated_user, require_repo_access
 from app.utils.db import (
     get_user_repositories, get_repository, get_scan_history,
     get_installation, create_scan, update_repo_last_scanned,
-    get_db_connection, soft_delete_repository
+    get_db_connection, soft_delete_repository,
+    upsert_installation, add_installation_member, upsert_repository
 )
 from app.utils.github import validate_branch_name, resolve_github_repo
 from app.utils.github_app import get_installation_access_token
@@ -40,6 +41,49 @@ router = APIRouter(prefix="/api/repos", tags=["repositories"])
 
 class RepoScanPayload(BaseModel):
     branch: Optional[str] = None
+
+class ConnectRepoPayload(BaseModel):
+    url: str
+    branch: Optional[str] = None
+
+def parse_repo_identifier(raw_input: str) -> tuple[str, str]:
+    """
+    Parses and sanitizes user input for repository link or path.
+    Supports:
+    - https://github.com/owner/repo
+    - https://github.com/owner/repo.git
+    - github.com/owner/repo
+    - owner/repo
+    """
+    if not raw_input or not isinstance(raw_input, str):
+        raise ValueError("Repository URL or 'owner/repo' must be provided.")
+    cleaned = raw_input.strip()
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[:-4]
+
+    if "://" in cleaned:
+        from urllib.parse import urlparse
+        parsed = urlparse(cleaned)
+        if parsed.netloc and parsed.netloc.lower() not in ("github.com", "www.github.com"):
+            raise ValueError("Only GitHub repositories (https://github.com/owner/repo) are supported.")
+        path = parsed.path.strip("/")
+    elif cleaned.startswith("github.com/"):
+        path = cleaned[len("github.com/"):].strip("/")
+    else:
+        path = cleaned.strip("/")
+
+    parts = [p for p in path.split("/") if p]
+    if len(parts) != 2:
+        raise ValueError("Invalid repository format. Please enter 'owner/repo' or 'https://github.com/owner/repo'.")
+
+    owner, repo_name = parts[0], parts[1]
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", owner) or not re.match(r"^[a-zA-Z0-9_\-\.]+$", repo_name):
+        raise ValueError("Repository name contains forbidden characters.")
+    if owner.startswith(".") or repo_name.startswith(".") or ".." in owner or ".." in repo_name:
+        raise ValueError("Invalid repository identifier.")
+
+    return owner, repo_name
 
 def sync_user_installations(user_id: int) -> list:
     """
@@ -184,23 +228,208 @@ async def list_repositories(
 ):
     """
     Lists all active repositories belonging to GitHub App installations
-    the current authenticated user has access to.
+    or direct repo connections the current authenticated user has access to.
     Automatically checks and syncs installations from GitHub if none are linked yet.
     """
     repos = get_user_repositories(user["id"], search=search)
-    if not repos or sync:
+    if not repos and sync:
         repos = sync_user_installations(user["id"])
         if search and search.strip():
             repos = [r for r in repos if search.strip().lower() in r.get("full_name", "").lower()]
 
     from app.utils.github_app import get_github_app_slug
     slug = get_github_app_slug()
-    install_url = f"https://github.com/apps/{slug}/installations/new"
+    install_url = f"https://github.com/apps/{slug}/installations/new" if slug else None
 
     return {
         "repositories": repos,
-        "app_slug": slug,
+        "app_slug": slug or None,
         "install_url": install_url
+    }
+
+@router.post("/connect")
+async def connect_repository(
+    request: Request,
+    payload: ConnectRepoPayload,
+    user: dict = Depends(require_authenticated_user)
+):
+    """
+    Connects a repository by inserting its GitHub link (like in Vercel or Render).
+    Validates accessibility on GitHub, resolves metadata & default branch,
+    creates user installation association, and adds the repo to active repositories.
+    """
+    verify_origin_or_csrf(request)
+
+    try:
+        owner, repo_name = parse_repo_identifier(payload.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Resolve token for GitHub REST API
+    auth_token = None
+    if user.get("encrypted_user_token"):
+        try:
+            from app.utils.crypto import decrypt_token
+            auth_token = decrypt_token(user["encrypted_user_token"])
+        except Exception:
+            auth_token = None
+
+    if not auth_token:
+        auth_token = os.environ.get("GITHUB_TOKEN")
+
+    import urllib.request
+    import urllib.error
+    import json
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "CodeVanguard-SAST/1.0"
+    }
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token.strip()}"
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
+    req = urllib.request.Request(api_url, headers=headers)
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            repo_data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as he:
+        if he.code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"GitHub repository '{owner}/{repo_name}' not found or is private. If it is private, please authorize access with GitHub."
+            )
+        elif he.code in (403, 429):
+            raise HTTPException(
+                status_code=429,
+                detail="GitHub API rate limit reached. Please try again shortly or configure GITHUB_TOKEN."
+            )
+        raise HTTPException(status_code=he.code, detail=f"GitHub API error ({he.code}): {he.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to GitHub API: {str(e)}")
+
+    github_repo_id = repo_data.get("id")
+    full_name = repo_data.get("full_name", f"{owner}/{repo_name}")
+    api_default_branch = repo_data.get("default_branch", "main")
+    is_private = bool(repo_data.get("private", False))
+
+    target_branch = api_default_branch
+    if payload.branch and payload.branch.strip():
+        try:
+            clean_branch = validate_branch_name(payload.branch)
+            if clean_branch:
+                target_branch = clean_branch
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    owner_obj = repo_data.get("owner", {})
+    owner_login = owner_obj.get("login", owner)
+    owner_type = owner_obj.get("type", "User")
+    owner_avatar = owner_obj.get("avatar_url")
+    owner_gh_id = owner_obj.get("id") or (990000000 + user["id"])
+
+    local_inst = upsert_installation(
+        github_installation_id=int(owner_gh_id),
+        account_login=owner_login,
+        account_type=owner_type,
+        account_avatar_url=owner_avatar
+    )
+    add_installation_member(local_inst["id"], user["id"], role="admin")
+
+    repo_record = upsert_repository(
+        installation_id=local_inst["id"],
+        github_repo_id=github_repo_id,
+        full_name=full_name,
+        default_branch=target_branch,
+        is_private=is_private
+    )
+
+    full_repo = get_repository(repo_record["id"])
+
+    return {
+        "status": "success",
+        "message": f"Successfully connected repository '{full_name}'.",
+        "repository": full_repo
+    }
+
+@router.get("/github-list")
+async def list_user_github_repositories(
+    user: dict = Depends(require_authenticated_user)
+):
+    """
+    Fetches repositories from the user's GitHub account via OAuth token,
+    marking which ones are already connected to CodeVanguard.
+    """
+    token = None
+    if user.get("encrypted_user_token"):
+        try:
+            from app.utils.crypto import decrypt_token
+            token = decrypt_token(user["encrypted_user_token"])
+        except Exception:
+            token = None
+
+    if not token:
+        return {
+            "repositories": [],
+            "authenticated_with_github": False
+        }
+
+    import urllib.request
+    import json
+    import logging
+    logger = logging.getLogger(__name__)
+
+    gh_repos = []
+    page = 1
+    while page <= 3:
+        req = urllib.request.Request(
+            f"https://api.github.com/user/repos?per_page=100&page={page}&sort=updated",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "CodeVanguard-SAST/1.0"
+            }
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if not data or not isinstance(data, list):
+                    break
+                for r in data:
+                    gh_repos.append({
+                        "id": r["id"],
+                        "name": r.get("name"),
+                        "full_name": r.get("full_name"),
+                        "private": bool(r.get("private")),
+                        "html_url": r.get("html_url"),
+                        "default_branch": r.get("default_branch", "main"),
+                        "description": r.get("description"),
+                        "updated_at": r.get("updated_at")
+                    })
+                if len(data) < 100:
+                    break
+                page += 1
+        except Exception as e:
+            logger.debug(f"Failed to fetch user repos from GitHub: {e}")
+            break
+
+    # Get already connected repos
+    connected = get_user_repositories(user["id"])
+    connected_map = {r["github_repo_id"]: r["id"] for r in connected}
+
+    annotated = []
+    for r in gh_repos:
+        r_id = r["id"]
+        annotated.append({
+            **r,
+            "connected": r_id in connected_map,
+            "connected_repo_id": connected_map.get(r_id)
+        })
+
+    return {
+        "repositories": annotated,
+        "authenticated_with_github": True
     }
 
 @router.post("/sync")
@@ -211,11 +440,12 @@ async def trigger_repo_sync(
     repos = sync_user_installations(user["id"])
     from app.utils.github_app import get_github_app_slug
     slug = get_github_app_slug()
+    install_url = f"https://github.com/apps/{slug}/installations/new" if slug else None
     return {
         "status": "success",
         "repositories": repos,
-        "app_slug": slug,
-        "install_url": f"https://github.com/apps/{slug}/installations/new"
+        "app_slug": slug or None,
+        "install_url": install_url
     }
 
 
@@ -375,8 +605,23 @@ async def trigger_repo_scan(
         requested_branch = payload.branch if payload else None
         clean_branch = validate_branch_name(requested_branch) if requested_branch else repo.get("default_branch", "main")
 
-        # Obtain GitHub App Installation Access Token
-        inst_token, _ = get_installation_access_token(installation["github_installation_id"])
+        # Obtain GitHub auth token: GitHub App -> User OAuth token -> env GITHUB_TOKEN -> None
+        inst_token = None
+        if installation and installation.get("github_installation_id"):
+            try:
+                inst_token, _ = get_installation_access_token(installation["github_installation_id"])
+            except Exception:
+                inst_token = None
+
+        if not inst_token and user.get("encrypted_user_token"):
+            try:
+                from app.utils.crypto import decrypt_token
+                inst_token = decrypt_token(user["encrypted_user_token"])
+            except Exception:
+                inst_token = None
+
+        if not inst_token:
+            inst_token = os.environ.get("GITHUB_TOKEN")
 
         parts = repo["full_name"].split("/", 1)
         if len(parts) != 2:
@@ -409,7 +654,7 @@ async def trigger_repo_scan(
         scan_id=scan_id,
         filename=filename,
         file_size=file_size,
-        source_type="github_app",
+        source_type="github_app" if inst_token else "github_public",
         source_url=f"https://github.com/{repo['full_name']}",
         branch=repo_info.resolved_branch,
         commit_sha=repo_info.commit_sha,
@@ -461,7 +706,23 @@ async def trigger_repo_history_scan(
         raise HTTPException(status_code=429, detail=reason)
 
     try:
-        inst_token, _ = get_installation_access_token(installation["github_installation_id"])
+        inst_token = None
+        if installation and installation.get("github_installation_id"):
+            try:
+                inst_token, _ = get_installation_access_token(installation["github_installation_id"])
+            except Exception:
+                inst_token = None
+
+        if not inst_token and user.get("encrypted_user_token"):
+            try:
+                from app.utils.crypto import decrypt_token
+                inst_token = decrypt_token(user["encrypted_user_token"])
+            except Exception:
+                inst_token = None
+
+        if not inst_token:
+            inst_token = os.environ.get("GITHUB_TOKEN")
+
         parts = repo["full_name"].split("/", 1)
         if len(parts) != 2:
             raise ValueError(f"Invalid repository full name '{repo['full_name']}'.")
@@ -476,7 +737,7 @@ async def trigger_repo_history_scan(
         scan_id=scan_id,
         filename=f"{repo['full_name']}@history",
         file_size=0,
-        source_type="github_app",
+        source_type="github_app" if inst_token else "github_public",
         source_url=f"https://github.com/{repo['full_name']}",
         branch=repo_info.resolved_branch,
         commit_sha=repo_info.commit_sha,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown, Check, Lock, Globe } from 'lucide-react';
+import { Search, ChevronDown, Check, Lock, Globe, Plus } from 'lucide-react';
 import { Repository } from '@/lib/api';
 import { ActiveTab } from './Tabs';
 
@@ -113,6 +113,20 @@ export function RepoSwitcher({
                 );
               })
             )}
+          </div>
+
+          <div className="pt-2 border-t border-[#E2E0D6]">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                router.push('/dashboard?connect=true');
+              }}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border-2 border-[#14141A] bg-[#D6F25B] text-[#14141A] font-mono text-xs font-bold hover:bg-[#c5e44a] transition-colors cursor-pointer shadow-[2px_2px_0_#14141A] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Connect Repository</span>
+            </button>
           </div>
         </div>
       )}
