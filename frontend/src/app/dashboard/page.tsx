@@ -1,14 +1,83 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Shield, RefreshCw, Plus, Search, Lock, Globe, GitBranch, 
-  ExternalLink, CheckCircle2, AlertCircle, ArrowRight, Link2, X
+  ExternalLink, CheckCircle2, AlertCircle, ArrowRight, Link2, X,
+  UploadCloud, FileCode, FolderArchive, Zap, Sparkles
 } from 'lucide-react';
 import { Header, SkeletonCard, ErrorState } from '@/components/ui';
 import { fetchApi, Repository, GitHubUserRepo } from '@/lib/api';
+
+const CODE_EXAMPLES: Record<'py' | 'js' | 'ts' | 'go', string> = {
+  py: `# Python SAST Vulnerability Demo: SQL Injection & Subprocess Shell
+import sqlite3
+import subprocess
+
+def search_user(username: str):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    # CRITICAL: Insecure string interpolation in SQL query (CWE-89)
+    cursor.execute(f"SELECT * FROM accounts WHERE user = '{username}'")
+    return cursor.fetchall()
+
+def run_backup(path: str):
+    # HIGH: shell=True command injection (CWE-78)
+    subprocess.Popen(f"tar -czf backup.tar.gz {path}", shell=True)
+`,
+  js: `// JavaScript/Node.js SAST Vulnerability Demo: Command Injection & Eval
+const express = require('express');
+const { exec } = require('child_process');
+const app = express();
+
+app.get('/ping', (req, res) => {
+    const host = req.query.host;
+    // CRITICAL: Unsanitized input passed directly to child_process.exec (CWE-78)
+    exec(\`ping -c 1 \${host}\`, (err, stdout) => {
+        res.send(stdout);
+    });
+});
+
+app.post('/calculate', (req, res) => {
+    // CRITICAL: Dynamic code execution via eval (CWE-95)
+    const result = eval(req.body.expression);
+    res.json({ result });
+});
+`,
+  ts: `// TypeScript / React Vulnerability Demo: XSS & Path Traversal
+import React from 'react';
+import fs from 'fs';
+import path from 'path';
+
+export const UserBio = ({ rawBioHtml }: { rawBioHtml: string }) => {
+    // HIGH: Direct unescaped HTML injection via dangerouslySetInnerHTML (CWE-79)
+    return <div dangerouslySetInnerHTML={{ __html: rawBioHtml }} />;
+};
+
+export function readUserFile(userInputPath: string) {
+    // HIGH: Path traversal vulnerability (CWE-22)
+    const target = path.join('/var/data/uploads', userInputPath);
+    return fs.readFileSync(target, 'utf-8');
+}
+`,
+  go: `// Go SAST Vulnerability Demo: Raw SQL Query Construction
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    _ "github.com/lib/pq"
+)
+
+func findAccount(db *sql.DB, accountName string) (*sql.Rows, error) {
+    // CRITICAL: Raw string concatenation in SQL statement (CWE-89)
+    query := fmt.Sprintf("SELECT id, balance FROM accounts WHERE name = '%s'", accountName)
+    return db.Query(query)
+}
+`
+};
 
 function DashboardContent() {
   const router = useRouter();
@@ -23,12 +92,25 @@ function DashboardContent() {
 
   // Connect Repository state
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [connectTab, setConnectTab] = useState<'url' | 'github' | 'app'>('url');
+  const [connectTab, setConnectTab] = useState<'url' | 'github' | 'upload' | 'paste' | 'app'>('url');
   const [repoUrl, setRepoUrl] = useState('');
   const [repoBranch, setRepoBranch] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectSuccess, setConnectSuccess] = useState<string | null>(null);
+
+  // Upload ZIP state
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Paste Code state
+  const [pastedCode, setPastedCode] = useState('');
+  const [pastedLang, setPastedLang] = useState<'py' | 'js' | 'ts' | 'go'>('py');
+  const [pasteLoading, setPasteLoading] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // User's GitHub Repositories
   const [userGhRepos, setUserGhRepos] = useState<GitHubUserRepo[]>([]);
@@ -197,6 +279,97 @@ function DashboardContent() {
     }
   };
 
+  const handleFileUpload = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!uploadFile) {
+      setUploadError('Please select or drag a file or ZIP archive to scan.');
+      return;
+    }
+
+    setUploadLoading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+
+      const res = await fetchApi('/api/scan/json', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to initialize file scan.');
+      }
+
+      router.push(`/results?id=${data.scan_id}`);
+    } catch (err: any) {
+      setUploadError(err.message || 'Error uploading file.');
+      setUploadLoading(false);
+    }
+  };
+
+  const handlePasteSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pastedCode.trim()) {
+      setPasteError('Please enter or paste your source code before scanning.');
+      return;
+    }
+
+    setPasteLoading(true);
+    setPasteError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('code', pastedCode);
+      formData.append('extension', pastedLang);
+
+      const res = await fetchApi('/api/scan/json', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to initialize code scan.');
+      }
+
+      router.push(`/results?id=${data.scan_id}`);
+    } catch (err: any) {
+      setPasteError(err.message || 'Error scanning code.');
+      setPasteLoading(false);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragging(true);
+    } else if (e.type === "dragleave") {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetUploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const validateAndSetUploadFile = (file: File) => {
+    setUploadError(null);
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File size exceeds the 10MB limit.');
+      return;
+    }
+    setUploadFile(file);
+  };
+
   const handleQuickScan = async (repo: Repository) => {
     setTriggeringScanId(repo.id);
     try {
@@ -255,7 +428,7 @@ function DashboardContent() {
             Repositories
           </h1>
           <p className="font-sans text-xs text-[#55555F] mt-1">
-            Connect and manage GitHub repositories for automated SAST &amp; secret scanning.
+            Connect repositories or scan code via Git URL, ZIP upload, or direct paste.
           </p>
         </div>
 
@@ -302,13 +475,13 @@ function DashboardContent() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1.5">
               <div className="inline-flex items-center gap-2 self-start px-2.5 py-0.5 rounded-full border border-[#14141A] bg-[#B8A2FF] font-mono text-[10px] font-bold text-[#14141A]">
-                <span>IMPORT GIT REPOSITORY</span>
+                <span>CONNECT &amp; SCAN CODE</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-[#14141A]">
-                Connect your GitHub repository
+                Choose how to analyze your code
               </h2>
               <p className="font-sans text-xs text-[#55555F]">
-                Insert your repository link to connect directly (like Vercel or Render), or import from your GitHub account.
+                Connect a GitHub repository via link, pick from your GitHub account, upload a ZIP codebase, or paste code directly.
               </p>
             </div>
 
@@ -347,6 +520,30 @@ function DashboardContent() {
             >
               <GitBranch className="w-3.5 h-3.5" />
               <span>Your GitHub Repos</span>
+            </button>
+
+            <button
+              onClick={() => { setConnectTab('upload'); setUploadError(null); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-bold transition-all cursor-pointer ${
+                connectTab === 'upload'
+                  ? 'bg-[#14141A] text-[#F5F4EE] shadow-[2px_2px_0_#D6F25B]'
+                  : 'bg-white text-[#14141A] border border-[#14141A] hover:bg-[#F5F4EE]'
+              }`}
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Upload File / ZIP</span>
+            </button>
+
+            <button
+              onClick={() => { setConnectTab('paste'); setPasteError(null); }}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-mono text-xs font-bold transition-all cursor-pointer ${
+                connectTab === 'paste'
+                  ? 'bg-[#14141A] text-[#F5F4EE] shadow-[2px_2px_0_#D6F25B]'
+                  : 'bg-white text-[#14141A] border border-[#14141A] hover:bg-[#F5F4EE]'
+              }`}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>Paste Code</span>
             </button>
 
             <button
@@ -544,7 +741,171 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 3: GitHub App (Optional) */}
+          {/* TAB 3: Upload File / ZIP */}
+          {connectTab === 'upload' && (
+            <form onSubmit={handleFileUpload} className="flex flex-col gap-4">
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center p-8 border-3 border-dashed rounded-2xl cursor-pointer transition-all ${
+                  isDragging
+                    ? 'border-[#14141A] bg-[#F6FBDD]'
+                    : 'border-[#14141A] bg-[#FAF9F5] hover:bg-[#F5F4EE]'
+                }`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-[#D6F25B] border-2 border-[#14141A] flex items-center justify-center shadow-[2px_2px_0_#14141A] mb-3">
+                  <UploadCloud className="w-7 h-7 text-[#14141A]" />
+                </div>
+                <h3 className="font-bold text-sm text-[#14141A] text-center">
+                  Drag &amp; drop your codebase archive, or <span className="underline decoration-[#D6F25B] decoration-2">browse</span>
+                </h3>
+                <p className="font-mono text-[11px] text-[#55555F] mt-1 text-center">
+                  Supports compressed <strong className="text-[#14141A]">.zip</strong> archives or single <strong className="text-[#14141A]">.py, .js, .ts, .go</strong> files (Max 10MB)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip,.py,.js,.ts,.go"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      validateAndSetUploadFile(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </div>
+
+              {uploadFile && (
+                <div className="flex items-center justify-between p-3.5 border-2 border-[#14141A] rounded-xl bg-white shadow-[2px_2px_0_#14141A]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FolderArchive className="w-5 h-5 text-[#14141A] flex-shrink-0" />
+                    <div className="min-w-0 flex flex-col">
+                      <span className="font-mono text-xs font-bold text-[#14141A] truncate">{uploadFile.name}</span>
+                      <span className="font-mono text-[10px] text-[#55555F]">{(uploadFile.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUploadFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="p-1 rounded hover:bg-[#F5F4EE] text-[#55555F] hover:text-[#14141A] cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {uploadError && (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl border-2 border-[#FF6B3D] bg-[#FFF2EE] text-[#14141A] font-mono text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 text-[#FF6B3D] flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={uploadLoading || !uploadFile}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-[#14141A] rounded-xl bg-[#D6F25B] text-[#14141A] font-bold text-sm shadow-[3px_3px_0_#14141A] hover:bg-[#c6e448] disabled:opacity-50 disabled:cursor-not-allowed active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+                >
+                  {uploadLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Extracting &amp; Scanning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>Scan Archive Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 4: Paste Code */}
+          {connectTab === 'paste' && (
+            <form onSubmit={handlePasteSubmit} className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 p-1 border-2 border-[#14141A] rounded-full bg-[#FAF9F5]">
+                  {(['py', 'js', 'ts', 'go'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setPastedLang(lang)}
+                      className={`px-3 py-1 rounded-full font-mono text-xs font-bold transition-all cursor-pointer ${
+                        pastedLang === lang
+                          ? 'bg-[#14141A] text-white shadow-[1px_1px_0_#D6F25B]'
+                          : 'text-[#14141A] hover:bg-[#F5F4EE]'
+                      }`}
+                    >
+                      {lang === 'py' ? 'Python' : lang === 'js' ? 'JavaScript' : lang === 'ts' ? 'TypeScript' : 'Go'}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPastedCode(CODE_EXAMPLES[pastedLang])}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#14141A] bg-white text-[#14141A] font-mono text-[11px] font-bold hover:bg-[#F5F4EE] cursor-pointer shadow-[1px_1px_0_#14141A]"
+                >
+                  <Sparkles className="w-3 h-3 text-[#B8A2FF]" />
+                  <span>Load Sample Vulnerability</span>
+                </button>
+              </div>
+
+              <div className="relative border-2 border-[#14141A] rounded-xl overflow-hidden shadow-[2px_2px_0_#14141A] bg-[#14141A]">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[#2B2B36] text-[#D0CFD8] font-mono text-[11px] border-b border-[#3C3C46]">
+                  <span>buffer.{pastedLang}</span>
+                  <span>{pastedCode.split('\n').length} lines · {pastedCode.length} chars</span>
+                </div>
+                <textarea
+                  value={pastedCode}
+                  onChange={(e) => setPastedCode(e.target.value)}
+                  placeholder={`# Paste your ${pastedLang.toUpperCase()} code here to analyze...`}
+                  rows={10}
+                  className="w-full p-4 font-mono text-xs leading-relaxed bg-[#14141A] text-[#F5F4EE] placeholder:text-[#55555F] focus:outline-none resize-y"
+                  spellCheck={false}
+                />
+              </div>
+
+              {pasteError && (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl border-2 border-[#FF6B3D] bg-[#FFF2EE] text-[#14141A] font-mono text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 text-[#FF6B3D] flex-shrink-0" />
+                  <span>{pasteError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={pasteLoading || !pastedCode.trim()}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-[#14141A] rounded-xl bg-[#D6F25B] text-[#14141A] font-bold text-sm shadow-[3px_3px_0_#14141A] hover:bg-[#c6e448] disabled:opacity-50 disabled:cursor-not-allowed active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+                >
+                  {pasteLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Analyzing Code...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>Scan Code Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 5: GitHub App (Optional) */}
           {connectTab === 'app' && (
             <div className="flex flex-col gap-4">
               <div className="border border-[#14141A] rounded-xl p-4 bg-[#FAF9F5] flex flex-col gap-2">
@@ -570,7 +931,7 @@ function DashboardContent() {
                 ) : (
                   <div className="flex flex-col gap-1 w-full p-3 rounded-xl border border-[#E2E0D6] bg-white font-mono text-xs text-[#55555F]">
                     <span className="font-bold text-[#14141A]">GitHub App slug is not configured</span>
-                    <span>Direct repository connection (Tabs 1 &amp; 2) is active and requires no GitHub App setup. If you created a GitHub App, set <code className="bg-[#FAF9F5] px-1 py-0.5 rounded font-bold">GITHUB_APP_SLUG</code> in your environment.</span>
+                    <span>Direct repository connection, ZIP upload, and paste scanning are active and require no GitHub App setup. If you created a GitHub App, set <code className="bg-[#FAF9F5] px-1 py-0.5 rounded font-bold">GITHUB_APP_SLUG</code> in your environment.</span>
                   </div>
                 )}
 

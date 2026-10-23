@@ -37,19 +37,28 @@ export default function HomePage() {
             Connect your GitHub repositories. CodeVanguard checks every pull request, reports only what is new, and proposes security fixes it has already compiler-verified.
           </p>
 
-          {/* Single Connect GitHub CTA */}
-          <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* Action CTAs: GitHub Connect and Instant Scan */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Link
               href="/login"
-              className="py-3.5 px-8 border-2 border-[#14141A] rounded-full bg-[#14141A] text-[#F5F4EE] font-bold text-base shadow-[3px_3px_0_#D6F25B] hover:shadow-[1px_1px_0_#D6F25B] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center gap-3 cursor-pointer w-full sm:w-auto"
+              className="py-3.5 px-7 border-2 border-[#14141A] rounded-full bg-[#14141A] text-[#F5F4EE] font-bold text-base shadow-[3px_3px_0_#D6F25B] hover:shadow-[1px_1px_0_#D6F25B] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
               aria-label="Connect GitHub and begin scanning"
             >
               <GithubIcon className="w-5 h-5 text-[#D6F25B]" />
               <span>Connect GitHub</span>
             </Link>
-            <span className="font-mono text-xs text-[#55555F]">
-              Free for public &amp; private repositories
-            </span>
+
+            <Link
+              href="/scan"
+              className="py-3.5 px-6 border-2 border-[#14141A] rounded-full bg-[#D6F25B] text-[#14141A] font-bold text-base shadow-[3px_3px_0_#14141A] hover:bg-[#c6e448] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              aria-label="Upload ZIP or paste code for instant scan"
+            >
+              <Zap className="w-5 h-5 text-[#14141A]" />
+              <span>Instant Scan (ZIP / Paste)</span>
+            </Link>
+          </div>
+          <div className="font-mono text-xs text-[#55555F]">
+            No account needed for ZIP &amp; Paste scans · Free for public &amp; private repos
           </div>
         </div>
 

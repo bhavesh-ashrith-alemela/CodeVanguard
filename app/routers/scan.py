@@ -116,7 +116,10 @@ async def trigger_scan(
     if not allowed:
         raise HTTPException(status_code=429, detail=reason)
 
-    create_scan(scan_id, filename, file_size, source_type=source_type)
+    user = get_current_user_optional(request)
+    owner_user_id = user["id"] if user else None
+
+    create_scan(scan_id, filename, file_size, source_type=source_type, owner_user_id=owner_user_id)
     await enqueue_scan_job(scan_id, client_ip=ip, background_tasks=background_tasks)
     
     if "hx-request" in request.headers:
@@ -305,7 +308,10 @@ async def trigger_scan_json(
     if not allowed:
         raise HTTPException(status_code=429, detail=reason)
 
-    create_scan(scan_id, filename, file_size, source_type=source_type)
+    user = get_current_user_optional(request)
+    owner_user_id = user["id"] if user else None
+
+    create_scan(scan_id, filename, file_size, source_type=source_type, owner_user_id=owner_user_id)
     await enqueue_scan_job(scan_id, client_ip=ip, background_tasks=background_tasks)
     
     return {"status": "success", "scan_id": scan_id}
@@ -368,6 +374,9 @@ async def trigger_scan_repo(
     filename = f"{owner}/{repo}@{repo_info.resolved_branch}"
     file_size = repo_info.size_kb * 1024
 
+    user = get_current_user_optional(request)
+    owner_user_id = user["id"] if user else None
+
     create_scan(
         scan_id=scan_id,
         filename=filename,
@@ -375,7 +384,8 @@ async def trigger_scan_repo(
         source_type="github_public",
         source_url=f"https://github.com/{owner}/{repo}",
         branch=repo_info.resolved_branch,
-        commit_sha=repo_info.commit_sha
+        commit_sha=repo_info.commit_sha,
+        owner_user_id=owner_user_id
     )
 
     await enqueue_scan_job(scan_id, client_ip=ip, background_tasks=background_tasks)

@@ -80,7 +80,7 @@ export default function Navbar() {
     router.push('/');
   };
 
-  const isScanActive = pathname === '/';
+  const isScanActive = pathname === '/scan';
   const isDashboardActive = pathname.startsWith('/dashboard') || pathname.startsWith('/repos');
   const isExamplesActive = pathname === '/examples';
   const isHistoryActive = pathname === '/history';
@@ -106,7 +106,7 @@ export default function Navbar() {
         <div className="flex-none gap-3 items-center hidden md:flex">
           <nav aria-label="Main" className="flex items-center gap-1 p-1 border-2 border-[#14141A] rounded-full bg-white shadow-[2px_2px_0_#14141A]">
             <Link 
-              href="/" 
+              href="/scan" 
               className={`py-1.5 px-4 rounded-full text-xs font-bold transition-all ${
                 isScanActive ? 'bg-[#14141A] text-[#F5F4EE]' : 'text-[#14141A] hover:bg-[#F5F4EE]'
               }`}
@@ -221,7 +221,7 @@ export default function Navbar() {
           {mobileMenuOpen && (
             <div className="absolute right-0 mt-3 z-50 p-3 shadow-[5px_5px_0_#14141A] bg-white border-2 border-[#14141A] rounded-[18px] w-56 flex flex-col gap-1.5 font-bold text-xs animate-slide-up">
               <Link 
-                href="/" 
+                href="/scan" 
                 className="p-2 hover:bg-[#F5F4EE] rounded-lg"
                 onClick={() => setMobileMenuOpen(false)}
               >
