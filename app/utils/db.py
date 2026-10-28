@@ -604,6 +604,11 @@ def init_db():
             cursor.execute("ALTER TABLE installations ENABLE ROW LEVEL SECURITY;")
             cursor.execute("ALTER TABLE installation_members ENABLE ROW LEVEL SECURITY;")
             cursor.execute("ALTER TABLE repositories ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE findings ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE pr_summaries ENABLE ROW LEVEL SECURITY;")
+            cursor.execute("ALTER TABLE fix_attempts ENABLE ROW LEVEL SECURITY;")
 
         conn.commit()
         
